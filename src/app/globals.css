@@ -1,0 +1,61 @@
+@import "tailwindcss";
+
+/*
+ * Esports-betting style: dark layered navy surfaces, one neon accent, bold uppercase display type.
+ * The product is dark-only by design.
+ */
+:root {
+  --bg: #0a0c12;
+  --surface: #11151e;
+  --surface-2: #171c28;
+  --surface-3: #202738;
+  --border: #242b3b;
+  --fg: #eef1f7;
+  --muted: #8a93a8;
+  --accent: #b8ff3b;
+  --accent-strong: #a3f01a;
+  --accent-fg: #0a0c12;
+  --hot: #ff6a2b;
+  --danger: #ff4d5e;
+  color-scheme: dark;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-border: var(--border);
+  --color-fg: var(--fg);
+  --color-muted: var(--muted);
+  --color-accent: var(--accent);
+  --color-accent-strong: var(--accent-strong);
+  --color-accent-fg: var(--accent-fg);
+  --color-hot: var(--hot);
+  --color-danger: var(--danger);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--bg);
+  color: var(--fg);
+}
+
+@layer components {
+  .btn {
+    @apply inline-flex h-10 items-center justify-center gap-2 rounded-lg px-4 text-sm font-bold uppercase tracking-wide transition-colors disabled:cursor-not-allowed disabled:opacity-60;
+  }
+  .btn-accent {
+    @apply bg-accent text-accent-fg hover:bg-accent-strong;
+  }
+  .btn-ghost {
+    @apply bg-surface-3 text-fg hover:bg-[#2a3347];
+  }
+  .panel {
+    @apply rounded-2xl border border-border bg-surface;
+  }
+  .display {
+    @apply font-black uppercase tracking-tight;
+  }
+}
