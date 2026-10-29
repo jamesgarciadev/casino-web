@@ -16,6 +16,28 @@ npm run dev       # http://localhost:3000
 
 Sign in with `customer@casino.test` / `password`.
 
+## End-to-end tests (Playwright)
+
+```sh
+npx playwright install chromium   # once
+npm run test:e2e                  # headless
+npm run test:e2e:ui               # interactive runner
+npm run test:e2e:report           # open the last HTML report (traces + screenshots on failure)
+```
+
+Requires Docker MySQL from `casino-be` to be up. The suite starts its own isolated stack, separate from your dev servers:
+
+| Piece | Port | Notes |
+|---|---|---|
+| `casino-be` (`php artisan serve`) | 8100 | database `casino_e2e_web`, reset and seeded every run |
+| this app (`next build` + `next start`) | 3100 | production build, so cookies behave like a real deploy |
+
+The E2E backend uses an in-memory cache, which disables the per-IP login throttle so repeated runs don't lock
+themselves out. Rate limiting is covered by `casino-be`'s PHPUnit suite instead.
+
+Specs live in `e2e/`. `global.setup.ts` resets the database and signs in the demo customer once; specs that need a
+signed-in player reuse that session via `storageState`. Tests that sign out create their own session.
+
 ## Layout
 
 - `src/lib/graphql/server.ts`: server-side GraphQL client (forwards bearer token + client IP)
