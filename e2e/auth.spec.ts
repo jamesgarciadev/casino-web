@@ -76,8 +76,8 @@ test.describe("register", () => {
     await page.goto("/register");
     await page.getByLabel("Name").fill("Someone Else");
     await page.getByLabel("Email").fill(DEMO_CUSTOMER.email);
-    await page.getByLabel("Password", { exact: true }).fill("e2e-password");
-    await page.getByLabel("Confirm password").fill("e2e-password");
+    await page.getByLabel("Password", { exact: true }).fill("E2e-Password1!");
+    await page.getByLabel("Confirm password").fill("E2e-Password1!");
     await page.getByRole("button", { name: "Create account" }).click();
 
     // This rule only exists in be, so the error proves server errors map back onto form fields.
@@ -94,9 +94,32 @@ test.describe("register", () => {
     await page.getByLabel("Confirm password").fill("different");
     await page.getByRole("button", { name: "Create account" }).click();
 
-    await expect(page.getByText("Password must be at least 8 characters.")).toBeVisible();
+    await expect(page.getByText("Password must be between 8 and 64 characters.")).toBeVisible();
     await expect(page.getByText("Passwords do not match.")).toBeVisible();
   });
+
+  for (const [password, message] of [
+    ["password1!", "Password must contain at least one uppercase letter."],
+    ["PASSWORD1!", "Password must contain at least one lowercase letter."],
+    ["Password!!", "Password must contain at least one number."],
+    ["Password12", "Password must contain at least one special character."],
+    ["Pass word1!", "Password must not contain spaces."],
+  ]) {
+    test(`password policy: "${password}" is rejected before submitting`, async ({ page }) => {
+      await page.goto("/register");
+      const posts: string[] = [];
+      page.on("request", (request) => request.method() === "POST" && posts.push(request.url()));
+
+      await page.getByLabel("Name").fill("Jane");
+      await page.getByLabel("Email").fill(newAccount().email);
+      await page.getByLabel("Password", { exact: true }).fill(password);
+      await page.getByLabel("Confirm password").fill(password);
+      await page.getByRole("button", { name: "Create account" }).click();
+
+      await expect(page.locator("#password-error")).toHaveText(message);
+      expect(posts).toEqual([]);
+    });
+  }
 });
 
 test.describe("log out", () => {

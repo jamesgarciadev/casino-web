@@ -14,7 +14,16 @@ export const registerSchema = RegisterInputSchema()
   .extend({
     name: z.string().trim().min(2, "Name must be at least 2 characters.").max(255),
     email: z.email("Enter a valid email address.").max(255),
-    password: z.string().min(8, "Password must be at least 8 characters.").max(255),
+    // Mirrors casino-be's App\Rules\StrongPassword.
+    password: z
+      .string()
+      .min(8, "Password must be between 8 and 64 characters.")
+      .max(64, "Password must be between 8 and 64 characters.")
+      .regex(/^\S*$/, "Password must not contain spaces.")
+      .regex(/\p{Lu}/u, "Password must contain at least one uppercase letter.")
+      .regex(/\p{Ll}/u, "Password must contain at least one lowercase letter.")
+      .regex(/\d/, "Password must contain at least one number.")
+      .regex(/[^\p{L}\d\s]/u, "Password must contain at least one special character."),
     passwordConfirmation: z.string().min(1, "Confirm your password."),
   })
   .refine((values) => values.password === values.passwordConfirmation, {

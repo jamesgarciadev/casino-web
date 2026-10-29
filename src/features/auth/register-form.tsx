@@ -27,6 +27,9 @@ export function RegisterForm() {
         error={errors.password?.message}
         {...form.register("password")}
       />
+      <p className="-mt-2 text-xs text-muted">
+        8–64 characters with an uppercase letter, a lowercase letter, a number and a special character. No spaces.
+      </p>
       <FormField
         label="Confirm password"
         type="password"

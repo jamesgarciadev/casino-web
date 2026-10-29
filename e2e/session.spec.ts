@@ -56,7 +56,7 @@ test.describe("signed in", () => {
     await page.goto("/");
 
     const response = await page.request.post("/api/graphql", {
-      data: { query: `mutation { login(input: { email: "${DEMO_CUSTOMER.email}", password: "password" }) { token } }` },
+      data: { query: `mutation { login(input: { email: "${DEMO_CUSTOMER.email}", password: "Password1!" }) { token } }` },
     });
 
     expect(response.status()).toBe(403);

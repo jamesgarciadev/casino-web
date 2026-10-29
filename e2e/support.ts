@@ -5,12 +5,12 @@ import { SESSION_COOKIE } from "./stack";
 type Account = { name: string; email: string; password: string };
 
 // Seeded by casino-be's DatabaseSeeder when APP_ENV=local.
-export const DEMO_CUSTOMER: Account = { name: "Customer Demo", email: "customer@casino.test", password: "password" };
-export const DEMO_ADMIN: Account = { name: "Admin Demo", email: "admin@casino.test", password: "password" };
+export const DEMO_CUSTOMER: Account = { name: "Customer Demo", email: "customer@casino.test", password: "Password1!" };
+export const DEMO_ADMIN: Account = { name: "Admin Demo", email: "admin@casino.test", password: "Password1!" };
 
 export function newAccount(): Account {
   const id = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-  return { name: `E2E Player ${id}`, email: `e2e-${id}@example.com`, password: "e2e-password" };
+  return { name: `E2E Player ${id}`, email: `e2e-${id}@example.com`, password: "E2e-Password1!" };
 }
 
 export async function signIn(page: Page, account: Pick<Account, "email" | "password">) {

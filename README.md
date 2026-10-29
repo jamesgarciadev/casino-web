@@ -14,7 +14,7 @@ npm run codegen   # types + Zod base schemas from ../casino-be/graphql/schema.pu
 npm run dev       # http://localhost:3000
 ```
 
-Sign in with `customer@casino.test` / `password`.
+Sign in with `customer@casino.test` / `Password1!`.
 
 ## End-to-end tests (Playwright)
 
