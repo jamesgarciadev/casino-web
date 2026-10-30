@@ -30,7 +30,11 @@ Sign in with `customer@casino.test` / `Password1!` (wallet starts at 1,000 CR).
 | `/my-bets` | Wallet balance, +500 top-up, bet history (signed in) |
 | `/login`, `/register`, `/account` | Server-action auth, restyled |
 
-The bet slip floats over every page: bottom sheet on phones, card on desktop.
+The bet slip floats over every page: bottom sheet on phones, card on desktop. A floating ticket button opens it at
+any time (empty placeholder when nothing is picked) and shows how many picks are waiting. One pick is a **Single**;
+odds from other matches turn it into a **Combo** with a match count and **Total odds** (the product, computed the same
+way as be's `Bet::totalOdds`). Picking the other team of a match already on the slip swaps that pick, since a combo
+can't back one match twice. Only the first pick opens the slip, so it doesn't cover the odds while a combo is built.
 
 ## How live updates work
 
@@ -75,7 +79,7 @@ their own player so wallets never collide; the live-update test creates its own 
 |---|---|
 | `auth.spec.ts` | log in, register, password policy, log out |
 | `session.spec.ts` | header and account per session state, GraphQL proxy |
-| `betting.spec.ts` | landing and filters, bet slip and payouts, placing bets, insufficient balance, top-up, live score and odds pushes, settlement |
+| `betting.spec.ts` | landing and filters, bet slip, singles and combos, total odds and payouts, placing bets, insufficient balance, top-up, live score and odds pushes, settlement |
 
 ## Layout
 

@@ -77,11 +77,44 @@ test.describe("bet slip", () => {
     await page.keyboard.press("Escape");
     await expect(slip(page)).toHaveCount(0);
 
+    // Further picks don't pop the slip back over the odds; the badge counts them.
+    await page.getByRole("button", { name: "NAVI to win at 1.85" }).click();
+    await expect(slip(page)).toHaveCount(0);
+    await page.getByRole("button", { name: "NAVI to win at 1.85" }).click();
+
     await page.getByRole("button", { name: "Open bet slip (1 selection)" }).click();
     await expect(slip(page)).toContainText("Sentinels to win");
 
-    await slip(page).getByRole("button", { name: "Remove selection" }).click();
+    await slip(page).getByRole("button", { name: "Remove Sentinels to win" }).click();
     await expect(slip(page)).toContainText("Your bet slip is empty");
+  });
+
+  test("picks from different matches make a combo with total odds; the same match swaps its pick", async ({ page }) => {
+    const mode = page.getByRole("complementary", { name: "Bet slip" }).locator('[aria-current="true"]');
+
+    await page.goto("/matches");
+    await page.getByRole("button", { name: "NAVI to win at 1.85" }).click();
+    await expect(mode).toHaveText("Single");
+    await expect(slip(page).getByTestId("slip-match-count")).toHaveText("1");
+    await expect(slip(page).getByTestId("total-odds")).toHaveText("@ 1.85");
+
+    // 1.85 × 2.10 = 3.885, rounded to 3.89.
+    await page.getByRole("button", { name: "Sentinels to win at 2.10" }).click();
+    await expect(mode).toHaveText("Combo");
+    await expect(slip(page).getByTestId("slip-match-count")).toHaveText("2");
+    await expect(slip(page).getByTestId("total-odds")).toHaveText("@ 3.89");
+    await expect(slip(page).getByTestId("potential-payout")).toHaveText("389 CR");
+    await expect(slip(page).getByRole("link", { name: "Log in to place this bet" })).toBeVisible();
+
+    // The other team of a match already on the slip replaces that pick: one match can't be in a combo twice.
+    await page.getByRole("button", { name: "FaZe Clan to win at 1.95" }).click();
+    await expect(slip(page).getByTestId("slip-match-count")).toHaveText("2");
+    await expect(slip(page).getByTestId("total-odds")).toHaveText("@ 4.10");
+    await expect(page.getByRole("button", { name: "NAVI to win at 1.85" })).toHaveAttribute("aria-pressed", "false");
+
+    await slip(page).getByRole("button", { name: "Remove Sentinels to win" }).click();
+    await expect(mode).toHaveText("Single");
+    await expect(slip(page).getByTestId("total-odds")).toHaveText("@ 1.95");
   });
 
   test("placing a bet debits the wallet and lists it under My bets", async ({ page }) => {
@@ -155,5 +188,30 @@ test.describe("live updates", () => {
 
     await page.goto("/my-bets");
     await expect(page.getByRole("listitem", { name: `${match.teamA} to win, won` })).toContainText("180 CR");
+  });
+
+  test("a combo stays pending until every pick has won, then pays the total odds", async ({ page, request }) => {
+    const first = await createLiveMatch(request);
+    const second = await createLiveMatch(request);
+
+    await registerNewPlayer(page);
+    await page.goto("/matches");
+    await page.getByRole("button", { name: `${first.teamA} to win at 1.80` }).click();
+    await page.getByRole("button", { name: `${second.teamA} to win at 1.80` }).click();
+    await expect(slip(page).getByTestId("total-odds")).toHaveText("@ 3.24");
+    await slip(page).getByRole("button", { name: "Place combo bet (2)" }).click();
+
+    await expect(page).toHaveURL("/my-bets");
+    await expect(page.getByText("Combo placed. Potential payout 324 CR.")).toBeVisible();
+    await expect(page.getByTestId("wallet-balance")).toContainText("900");
+
+    await updateMatch(request, first.id, { scoreA: 13, state: "FINISHED", winner: "A" });
+    await page.reload();
+    await expect(page.getByRole("listitem", { name: "Combo of 2, pending" })).toContainText("@ 3.24");
+
+    await updateMatch(request, second.id, { scoreA: 13, state: "FINISHED", winner: "A" });
+    await page.reload();
+    await expect(page.getByRole("listitem", { name: "Combo of 2, won" })).toContainText("324 CR");
+    await expect(page.getByTestId("wallet-balance")).toContainText("1,224");
   });
 });

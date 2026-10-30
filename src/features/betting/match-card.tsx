@@ -14,7 +14,7 @@ import { formatOdds, gameLabel, oddsFor, teamName, type Match } from "./match";
 const startFormat = new Intl.DateTimeFormat("en-US", { weekday: "short", hour: "2-digit", minute: "2-digit", hour12: false });
 
 function OddsButton({ match, side }: { match: Match; side: Side }) {
-  const selected = useUiStore((s) => s.selection?.matchId === match.id && s.selection.side === side);
+  const selected = useUiStore((s) => s.selections.some((pick) => pick.matchId === match.id && pick.side === side));
   const toggle = useUiStore((s) => s.toggleSelection);
   const odds = oddsFor(match, side);
   const team = teamName(match, side);

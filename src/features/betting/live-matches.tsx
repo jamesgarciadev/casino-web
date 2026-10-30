@@ -180,9 +180,9 @@ export function useLiveMatch(initial: Match): Match {
   return useLiveStore((s) => s.matches[initial.id]) ?? initial;
 }
 
-/** The newest version of a match by id, if the client has seen it. */
-export function useKnownMatch(id: string | undefined): Match | undefined {
-  return useLiveStore((s) => (id ? s.matches[id] : undefined));
+/** All matches the client has seen, by id, for looking up several at once (the bet slip). */
+export function useKnownMatchMap(): Record<string, Match> {
+  return useLiveStore((s) => s.matches);
 }
 
 /**

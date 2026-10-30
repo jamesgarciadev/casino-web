@@ -5,19 +5,22 @@ import { z } from "zod";
 
 import { getSessionToken } from "@/lib/auth/session";
 import { isUnauthenticated } from "@/lib/graphql/errors";
-import { PlaceBetMutation, TopUpWalletMutation } from "@/lib/graphql/operations";
+import { PlaceBetMutation, PlaceComboBetMutation, TopUpWalletMutation } from "@/lib/graphql/operations";
 import { gqlRequest } from "@/lib/graphql/server";
 
 export type BetResult = { ok: true; payout: number; balance: number } | { ok: false; message: string };
 
 const placeBetSchema = z.object({
-  matchId: z.string().regex(/^\d+$/),
-  side: z.enum(["A", "B"]),
+  selections: z
+    .array(z.object({ matchId: z.string().regex(/^\d+$/), side: z.enum(["A", "B"]) }))
+    .min(1, "Pick some odds first.")
+    .refine((picks) => new Set(picks.map((p) => p.matchId)).size === picks.length, "A combo can only include one pick per match."),
   stake: z.number().int("Stake must be whole credits.").min(1, "Enter a stake first.").max(1_000_000),
 });
 
 const SIGNED_OUT = "Your session has ended. Log in to place this bet.";
 
+/** One pick is placed as a single, two or more as a combo. */
 export async function placeBetAction(input: z.input<typeof placeBetSchema>): Promise<BetResult> {
   const parsed = placeBetSchema.safeParse(input);
   if (!parsed.success) {
@@ -28,15 +31,20 @@ export async function placeBetAction(input: z.input<typeof placeBetSchema>): Pro
     return { ok: false, message: SIGNED_OUT };
   }
 
-  const { data, errors } = await gqlRequest(PlaceBetMutation, { input: parsed.data });
-  if (!data?.placeBet) {
+  const { selections, stake } = parsed.data;
+  const { data, errors } =
+    selections.length === 1
+      ? await gqlRequest(PlaceBetMutation, { input: { ...selections[0], stake } }).then((r) => ({ ...r, data: r.data?.placeBet }))
+      : await gqlRequest(PlaceComboBetMutation, { input: { selections, stake } }).then((r) => ({ ...r, data: r.data?.placeComboBet }));
+
+  if (!data) {
     return { ok: false, message: isUnauthenticated(errors) ? SIGNED_OUT : (errors[0]?.message ?? "The bet could not be placed.") };
   }
 
   // The header wallet lives in the shared layout, which client navigation would otherwise keep as-is.
   refresh();
 
-  return { ok: true, payout: data.placeBet.bet.payout, balance: data.placeBet.wallet.balance };
+  return { ok: true, payout: data.bet.payout, balance: data.wallet.balance };
 }
 
 export async function topUpWalletAction(): Promise<{ balance: number } | { message: string }> {

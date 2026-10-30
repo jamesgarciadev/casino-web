@@ -44,16 +44,35 @@ export type AuthPayload = {
 export type Bet = {
   __typename?: 'Bet';
   id: Scalars['ID']['output'];
-  match: Match;
-  /** Odds when the bet was placed. */
+  /** Total odds when the bet was placed: the product of the selections' odds, rounded to cents after each pick. */
   odds: Scalars['Float']['output'];
   /** stake × odds, rounded. Credited only if the bet is WON. */
   payout: Scalars['Int']['output'];
   placedAt: Scalars['DateTime']['output'];
+  /** One pick for a SINGLE, one per match for a COMBO, in the order they were picked. */
+  selections: Array<BetSelection>;
   settledAt?: Maybe<Scalars['DateTime']['output']>;
-  side: Side;
   stake: Scalars['Int']['output'];
+  /** WON once every selection has won; LOST as soon as one selection loses. */
   status: BetStatus;
+  type: BetType;
+};
+
+/** One pick of a bet. */
+export type BetSelection = {
+  __typename?: 'BetSelection';
+  id: Scalars['ID']['output'];
+  match: Match;
+  /** Odds for this pick when the bet was placed. */
+  odds: Scalars['Float']['output'];
+  side: Side;
+  /** PENDING until its match finishes. */
+  status: BetStatus;
+};
+
+export type BetSelectionInput = {
+  matchId: Scalars['ID']['input'];
+  side: Side;
 };
 
 /** PENDING until the match finishes, then WON or LOST. */
@@ -61,6 +80,11 @@ export type BetStatus =
   | 'LOST'
   | 'PENDING'
   | 'WON';
+
+/** SINGLE backs one match; COMBO backs several different matches and wins only if every pick wins. */
+export type BetType =
+  | 'COMBO'
+  | 'SINGLE';
 
 export type EsportsLeague = {
   __typename?: 'EsportsLeague';
@@ -185,6 +209,8 @@ export type Mutation = {
   logout: Scalars['Boolean']['output'];
   /** Bet play-money credits on one side of a match. Odds are taken from the match at this moment. */
   placeBet: PlaceBetPayload;
+  /** Bet on two or more picks from different matches (a parlay). Total odds are the product of the picks' odds at this moment; it wins only if every pick wins. */
+  placeComboBet: PlaceBetPayload;
   /** Create a customer account and return a customer-scoped token. */
   register: AuthPayload;
   /** casino-sim: create a simulated match. */
@@ -214,6 +240,11 @@ export type MutationLoginArgs = {
 
 export type MutationPlaceBetArgs = {
   input: PlaceBetInput;
+};
+
+
+export type MutationPlaceComboBetArgs = {
+  input: PlaceComboBetInput;
 };
 
 
@@ -293,6 +324,12 @@ export type PlaceBetPayload = {
   __typename?: 'PlaceBetPayload';
   bet: Bet;
   wallet: Wallet;
+};
+
+export type PlaceComboBetInput = {
+  /** At least two picks, each from a different match. */
+  selections: Array<BetSelectionInput>;
+  stake: Scalars['Int']['input'];
 };
 
 export type Query = {
@@ -464,7 +501,7 @@ export type Wallet = {
 
 
 type Properties<T> = {
-  [K in keyof T]: z.ZodType<T[K], T[K] | undefined>;
+  [K in keyof T]: z.ZodType<T[K], unknown>;
 };
 
 type definedNonNullAny = {};
@@ -474,6 +511,8 @@ export const isDefinedNonNullAny = (v: any): v is definedNonNullAny => v !== und
 export const definedNonNullAnySchema = z.any().refine((v) => isDefinedNonNullAny(v));
 
 export const BetStatusSchema: z.ZodType<"LOST" | "PENDING" | "WON", "LOST" | "PENDING" | "WON"> = z.enum(['LOST', 'PENDING', 'WON']);
+
+export const BetTypeSchema: z.ZodType<"COMBO" | "SINGLE", "COMBO" | "SINGLE"> = z.enum(['COMBO', 'SINGLE']);
 
 export const MatchStateSchema: z.ZodType<"FINISHED" | "LIVE" | "UPCOMING", "FINISHED" | "LIVE" | "UPCOMING"> = z.enum(['FINISHED', 'LIVE', 'UPCOMING']);
 
@@ -495,6 +534,13 @@ export const SortOrderSchema: z.ZodType<"ASC" | "DESC", "ASC" | "DESC"> = z.enum
 
 export const TrashedSchema: z.ZodType<"ONLY" | "WITH" | "WITHOUT", "ONLY" | "WITH" | "WITHOUT"> = z.enum(['ONLY', 'WITH', 'WITHOUT']);
 
+export function BetSelectionInputSchema(): z.ZodObject<Properties<BetSelectionInput>> {
+  return z.object({
+    matchId: z.string(),
+    side: SideSchema
+  })
+}
+
 export function LoginInputSchema(): z.ZodObject<Properties<LoginInput>> {
   return z.object({
     email: z.string(),
@@ -513,6 +559,13 @@ export function PlaceBetInputSchema(): z.ZodObject<Properties<PlaceBetInput>> {
   return z.object({
     matchId: z.string(),
     side: SideSchema,
+    stake: z.number()
+  })
+}
+
+export function PlaceComboBetInputSchema(): z.ZodObject<Properties<PlaceComboBetInput>> {
+  return z.object({
+    selections: z.array(z.lazy(() => BetSelectionInputSchema())),
     stake: z.number()
   })
 }

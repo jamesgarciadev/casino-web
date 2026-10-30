@@ -83,14 +83,20 @@ export const MyBetsQuery = graphql(`
   query MyBets {
     myBets {
       id
-      side
+      type
       stake
       odds
       payout
       status
       placedAt
-      match {
-        ...MatchFields
+      selections {
+        id
+        side
+        odds
+        status
+        match {
+          ...MatchFields
+        }
       }
     }
   }
@@ -99,6 +105,20 @@ export const MyBetsQuery = graphql(`
 export const PlaceBetMutation = graphql(`
   mutation PlaceBet($input: PlaceBetInput!) {
     placeBet(input: $input) {
+      bet {
+        id
+        payout
+      }
+      wallet {
+        balance
+      }
+    }
+  }
+`);
+
+export const PlaceComboBetMutation = graphql(`
+  mutation PlaceComboBet($input: PlaceComboBetInput!) {
+    placeComboBet(input: $input) {
       bet {
         id
         payout

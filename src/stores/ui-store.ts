@@ -6,16 +6,23 @@ import type { Side } from "@/gql/graphql";
 export type SlipSelection = { matchId: string; side: Side };
 
 export type UiState = {
-  /** The bet slip's pick. Odds are read live from the match, and be uses its own odds when the bet is placed. */
-  selection: SlipSelection | null;
+  /**
+   * The bet slip's picks, at most one per match, in the order they were picked. One pick is a single, two or more
+   * a combo. Odds are read live from the matches, and be uses its own odds when the bet is placed.
+   */
+  selections: SlipSelection[];
   stake: number;
   /** Whether the slip panel is showing; the floating button opens it even when it is empty. */
   slipOpen: boolean;
 };
 
 export type UiActions = {
-  /** Picking the same odds again removes it, as in the design. Picking new odds opens the slip. */
+  /**
+   * Picking the same odds again removes it, as in the design. The other side of a match already on the slip
+   * replaces that pick, since a combo can't back one match twice. Any other pick is added.
+   */
   toggleSelection: (selection: SlipSelection) => void;
+  removeSelection: (matchId: string) => void;
   clearSlip: () => void;
   setSlipOpen: (open: boolean) => void;
   setStake: (stake: number) => void;
@@ -24,7 +31,7 @@ export type UiActions = {
 export type UiStore = UiState & UiActions;
 
 export const defaultUiState: UiState = {
-  selection: null,
+  selections: [],
   stake: 100,
   slipOpen: false,
 };
@@ -33,12 +40,23 @@ export function createUiStore(initialState: UiState = defaultUiState) {
   return createStore<UiStore>()((set) => ({
     ...initialState,
     toggleSelection: (selection) =>
-      set((state) =>
-        state.selection?.matchId === selection.matchId && state.selection.side === selection.side
-          ? { selection: null }
-          : { selection, slipOpen: true },
-      ),
-    clearSlip: () => set({ selection: null }),
+      set((state) => {
+        const existing = state.selections.find((s) => s.matchId === selection.matchId);
+
+        if (existing?.side === selection.side) {
+          return { selections: state.selections.filter((s) => s !== existing) };
+        }
+
+        return {
+          selections: existing
+            ? state.selections.map((s) => (s === existing ? selection : s))
+            : [...state.selections, selection],
+          // Only the first pick pops the slip open; while building a combo it would cover the odds.
+          slipOpen: state.slipOpen || state.selections.length === 0,
+        };
+      }),
+    removeSelection: (matchId) => set((state) => ({ selections: state.selections.filter((s) => s.matchId !== matchId) })),
+    clearSlip: () => set({ selections: [] }),
     setSlipOpen: (slipOpen) => set({ slipOpen }),
     setStake: (stake) => set({ stake: Number.isFinite(stake) ? Math.max(0, Math.round(stake)) : 0 }),
   }));

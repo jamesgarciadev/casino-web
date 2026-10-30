@@ -1,4 +1,4 @@
-import { ArrowRight, Coins, Gamepad2 } from "lucide-react";
+import { ArrowRight, Coins, Gamepad2, Layers } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
@@ -18,6 +18,12 @@ const STATUS_STYLES: Record<BetStatus, string> = {
   WON: "border-live/40 bg-live/10 text-live",
   LOST: "border-destructive/40 bg-destructive/10 text-destructive",
 };
+
+type Selection = Awaited<ReturnType<typeof getMyBets>>[number]["selections"][number];
+
+function pickTeam(selection: Selection): string {
+  return selection.side === "A" ? selection.match.teamA : selection.match.teamB;
+}
 
 const placedFormat = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
 
@@ -66,26 +72,47 @@ async function WalletAndBets() {
       ) : (
         <ul className="mt-6 space-y-3">
           {bets.map((bet) => {
-            const team = bet.side === "A" ? bet.match.teamA : bet.match.teamB;
+            const combo = bet.type === "COMBO";
+            const [first] = bet.selections;
+            const label = combo ? `Combo of ${bet.selections.length}` : `${pickTeam(first)} to win`;
 
             return (
               <li
                 key={bet.id}
-                aria-label={`${team} to win, ${bet.status.toLowerCase()}`}
+                aria-label={`${label}, ${bet.status.toLowerCase()}`}
                 className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-border bg-card px-5 py-4"
               >
-                <div className="min-w-0">
-                  <p className="font-display text-xs font-bold uppercase text-primary">{gameLabel(bet.match)}</p>
-                  <p className="mt-0.5 truncate font-display text-sm font-bold">
-                    {bet.match.teamA} vs {bet.match.teamB}
-                    {bet.match.state !== "UPCOMING" && (
-                      <span className="ml-2 text-muted-foreground tabular-nums">
-                        {bet.match.scoreA}:{bet.match.scoreB}
-                      </span>
-                    )}
-                  </p>
-                  <p className="mt-0.5 text-xs text-muted-foreground">
-                    {team} to win · @ {formatOdds(bet.odds)} ·{" "}
+                <div className="min-w-0 flex-1">
+                  {combo && (
+                    <p className="mb-2 flex items-center gap-2 font-display text-xs font-bold uppercase text-primary">
+                      <Layers className="size-3.5" />
+                      Combo · {bet.selections.length} matches · @ {formatOdds(bet.odds)}
+                    </p>
+                  )}
+                  <div className={cn(combo && "space-y-2 border-l-2 border-primary/30 pl-3")}>
+                    {bet.selections.map((selection) => (
+                      <div key={selection.id} className="min-w-0">
+                        <p className="flex items-center gap-2 font-display text-xs font-bold uppercase text-primary">
+                          {gameLabel(selection.match)}
+                          {combo && (
+                            <span className={cn("rounded-full border px-1.5 text-[9px]", STATUS_STYLES[selection.status])}>{selection.status}</span>
+                          )}
+                        </p>
+                        <p className="mt-0.5 truncate font-display text-sm font-bold">
+                          {selection.match.teamA} vs {selection.match.teamB}
+                          {selection.match.state !== "UPCOMING" && (
+                            <span className="ml-2 text-muted-foreground tabular-nums">
+                              {selection.match.scoreA}:{selection.match.scoreB}
+                            </span>
+                          )}
+                        </p>
+                        <p className="mt-0.5 text-xs text-muted-foreground">
+                          {pickTeam(selection)} to win · @ {formatOdds(selection.odds)}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="mt-2 text-xs text-muted-foreground">
                     <time dateTime={bet.placedAt} suppressHydrationWarning>
                       {placedFormat.format(new Date(bet.placedAt))}
                     </time>

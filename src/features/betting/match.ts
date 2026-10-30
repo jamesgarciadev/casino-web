@@ -21,6 +21,22 @@ export function oddsFor(match: Match, side: Side): number {
   return side === "A" ? match.oddsA : match.oddsB;
 }
 
+const MAX_TOTAL_ODDS = 1_000_000;
+
+/**
+ * A combo's total odds: the picks' odds multiplied in whole cents, rounding half up after each pick and capped,
+ * the same integer maths as be's Bet::totalOdds.
+ */
+export function totalOdds(odds: number[]): number {
+  let cents = 100;
+
+  for (const pick of odds) {
+    cents = Math.min(Math.floor((cents * Math.round(pick * 100) + 50) / 100), MAX_TOTAL_ODDS * 100);
+  }
+
+  return cents / 100;
+}
+
 /** stake × odds rounded half up to whole credits; the same integer maths as be's Bet::payoutFor. */
 export function potentialPayout(stake: number, odds: number): number {
   return Math.floor((stake * Math.round(odds * 100) + 50) / 100);
