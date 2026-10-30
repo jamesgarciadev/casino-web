@@ -43,6 +43,8 @@ export type AuthPayload = {
 
 export type Bet = {
   __typename?: 'Bet';
+  /** Credits paid when the bet was CASHED_OUT. */
+  cashOut?: Maybe<Scalars['Int']['output']>;
   id: Scalars['ID']['output'];
   /** Total odds when the bet was placed: the product of the selections' odds, rounded to cents after each pick. */
   odds: Scalars['Float']['output'];
@@ -53,7 +55,7 @@ export type Bet = {
   selections: Array<BetSelection>;
   settledAt?: Maybe<Scalars['DateTime']['output']>;
   stake: Scalars['Int']['output'];
-  /** WON once every selection has won; LOST as soon as one selection loses. */
+  /** WON once every selection has won; LOST as soon as one selection loses; CASHED_OUT if a single was withdrawn. */
   status: BetStatus;
   type: BetType;
 };
@@ -75,8 +77,9 @@ export type BetSelectionInput = {
   side: Side;
 };
 
-/** PENDING until the match finishes, then WON or LOST. */
+/** PENDING until the match finishes, then WON or LOST; CASHED_OUT if a single was withdrawn first. */
 export type BetStatus =
+  | 'CASHED_OUT'
   | 'LOST'
   | 'PENDING'
   | 'WON';
@@ -85,6 +88,12 @@ export type BetStatus =
 export type BetType =
   | 'COMBO'
   | 'SINGLE';
+
+export type CashOutBetInput = {
+  betId: Scalars['ID']['input'];
+  /** The cash-out value the player was shown, in whole credits. */
+  expected: Scalars['Int']['input'];
+};
 
 export type EsportsLeague = {
   __typename?: 'EsportsLeague';
@@ -203,6 +212,8 @@ export type Mutation = {
   adminAssignRole: User;
   /** Staff sign-in for the admin console. Returns an admin-scoped token. */
   adminLogin: AuthPayload;
+  /** Withdraw an open single for its value at the match's current odds (stake × placed odds ÷ current odds). expected is the value the player was shown; a lower current value is refused. */
+  cashOutBet: PlaceBetPayload;
   /** Customer sign-in for the web app. Returns a customer-scoped token. */
   login: AuthPayload;
   /** Revoke the token used for this request. */
@@ -230,6 +241,11 @@ export type MutationAdminAssignRoleArgs = {
 
 export type MutationAdminLoginArgs = {
   input: LoginInput;
+};
+
+
+export type MutationCashOutBetArgs = {
+  input: CashOutBetInput;
 };
 
 
@@ -520,7 +536,7 @@ export const isDefinedNonNullAny = (v: any): v is definedNonNullAny => v !== und
 
 export const definedNonNullAnySchema = z.any().refine((v) => isDefinedNonNullAny(v));
 
-export const BetStatusSchema: z.ZodType<"LOST" | "PENDING" | "WON", "LOST" | "PENDING" | "WON"> = z.enum(['LOST', 'PENDING', 'WON']);
+export const BetStatusSchema: z.ZodType<"CASHED_OUT" | "LOST" | "PENDING" | "WON", "CASHED_OUT" | "LOST" | "PENDING" | "WON"> = z.enum(['CASHED_OUT', 'LOST', 'PENDING', 'WON']);
 
 export const BetTypeSchema: z.ZodType<"COMBO" | "SINGLE", "COMBO" | "SINGLE"> = z.enum(['COMBO', 'SINGLE']);
 
@@ -548,6 +564,13 @@ export function BetSelectionInputSchema(): z.ZodObject<Properties<BetSelectionIn
   return z.object({
     matchId: z.string(),
     side: SideSchema
+  })
+}
+
+export function CashOutBetInputSchema(): z.ZodObject<Properties<CashOutBetInput>> {
+  return z.object({
+    betId: z.string(),
+    expected: z.number()
   })
 }
 

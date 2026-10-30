@@ -4,7 +4,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 
 import { buttonVariants } from "@/components/ui/button";
-import { BET_STATUS_STYLES, betLabel, pickTeam } from "@/features/betting/bet";
+import { BET_STATUS_STYLES, betLabel, pickTeam, statusLabel } from "@/features/betting/bet";
 import { formatCredits, formatOdds, gameLabel } from "@/features/betting/match";
 import { getMyBets, getWalletBalance } from "@/features/betting/queries";
 import { TopUpButton } from "@/features/betting/top-up-button";
@@ -65,7 +65,7 @@ async function WalletAndBets() {
             return (
               <li
                 key={bet.id}
-                aria-label={`${betLabel(bet)}, ${bet.status.toLowerCase()}`}
+                aria-label={`${betLabel(bet)}, ${statusLabel(bet.status)}`}
                 className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-border bg-card px-5 py-4"
               >
                 <div className="min-w-0 flex-1">
@@ -81,7 +81,7 @@ async function WalletAndBets() {
                         <p className="flex items-center gap-2 font-display text-xs font-bold uppercase text-primary">
                           {gameLabel(selection.match)}
                           {combo && (
-                            <span className={cn("rounded-full border px-1.5 text-[9px]", BET_STATUS_STYLES[selection.status])}>{selection.status}</span>
+                            <span className={cn("rounded-full border px-1.5 text-[9px]", BET_STATUS_STYLES[selection.status])}>{statusLabel(selection.status)}</span>
                           )}
                         </p>
                         <p className="mt-0.5 truncate font-display text-sm font-bold">
@@ -109,14 +109,21 @@ async function WalletAndBets() {
                     <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Stake</p>
                     <p className="font-display font-bold tabular-nums">{formatCredits(bet.stake)}</p>
                   </div>
-                  <div className="text-right">
-                    <p className="text-[11px] uppercase tracking-wider text-muted-foreground">{bet.status === "WON" ? "Paid" : "Payout"}</p>
-                    <p className={cn("font-display font-bold tabular-nums", bet.status === "LOST" ? "text-muted-foreground line-through" : "text-accent")}>
-                      {formatCredits(bet.payout)}
-                    </p>
-                  </div>
+                  {bet.status === "CASHED_OUT" ? (
+                    <div className="text-right">
+                      <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Cashed out</p>
+                      <p className="font-display font-bold tabular-nums">{formatCredits(bet.cashOut ?? 0)}</p>
+                    </div>
+                  ) : (
+                    <div className="text-right">
+                      <p className="text-[11px] uppercase tracking-wider text-muted-foreground">{bet.status === "WON" ? "Paid" : "Payout"}</p>
+                      <p className={cn("font-display font-bold tabular-nums", bet.status === "LOST" ? "text-muted-foreground line-through" : "text-accent")}>
+                        {formatCredits(bet.payout)}
+                      </p>
+                    </div>
+                  )}
                   <span className={cn("rounded-full border px-3 py-1 font-display text-[10px] font-bold uppercase tracking-wider", BET_STATUS_STYLES[bet.status])}>
-                    {bet.status}
+                    {statusLabel(bet.status)}
                   </span>
                 </div>
               </li>

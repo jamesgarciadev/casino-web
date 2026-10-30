@@ -45,7 +45,8 @@ test.describe("browsing", () => {
 
 test.describe("bet slip", () => {
   test("odds open the slip, stake chips update the payout, and signed-out players are asked to log in", async ({ page }) => {
-    await page.goto("/matches");
+    // Filtered so the card stays clear of the open slip however many live matches other tests leave behind.
+    await page.goto("/matches?game=valorant");
     await page.getByRole("button", { name: "Sentinels to win at 2.10" }).click();
 
     await expect(slip(page)).toContainText("Sentinels to win");
@@ -92,6 +93,13 @@ test.describe("bet slip", () => {
   test("picks from different matches make a combo with total odds; the same match swaps its pick", async ({ page }) => {
     const mode = page.getByRole("complementary", { name: "Bet slip" }).locator('[aria-current="true"]');
 
+    // Picks are made with the slip closed (as players building a combo do), so it never covers a card.
+    const pickWithSlipClosed = async (name: string) => {
+      await page.keyboard.press("Escape");
+      await page.getByRole("button", { name }).click();
+      await page.getByRole("button", { name: /^Open bet slip/ }).click();
+    };
+
     await page.goto("/matches");
     await page.getByRole("button", { name: "NAVI to win at 1.85" }).click();
     await expect(mode).toHaveText("Single");
@@ -99,7 +107,7 @@ test.describe("bet slip", () => {
     await expect(slip(page).getByTestId("total-odds")).toHaveText("@ 1.85");
 
     // 1.85 × 2.10 = 3.885, rounded to 3.89.
-    await page.getByRole("button", { name: "Sentinels to win at 2.10" }).click();
+    await pickWithSlipClosed("Sentinels to win at 2.10");
     await expect(mode).toHaveText("Combo");
     await expect(slip(page).getByTestId("slip-match-count")).toHaveText("2");
     await expect(slip(page).getByTestId("total-odds")).toHaveText("@ 3.89");
@@ -107,7 +115,7 @@ test.describe("bet slip", () => {
     await expect(slip(page).getByRole("link", { name: "Log in to place this bet" })).toBeVisible();
 
     // The other team of a match already on the slip replaces that pick: one match can't be in a combo twice.
-    await page.getByRole("button", { name: "FaZe Clan to win at 1.95" }).click();
+    await pickWithSlipClosed("FaZe Clan to win at 1.95");
     await expect(slip(page).getByTestId("slip-match-count")).toHaveText("2");
     await expect(slip(page).getByTestId("total-odds")).toHaveText("@ 4.10");
     await expect(page.getByRole("button", { name: "NAVI to win at 1.85" })).toHaveAttribute("aria-pressed", "false");
@@ -264,6 +272,105 @@ test.describe("live updates", () => {
     await expect(slip(page).getByRole("listitem", { name: `${match.teamA} to win, won` })).toContainText("Paid 180 CR");
   });
 
+  test("an open single can be withdrawn at its live value", async ({ page, request }) => {
+    const match = await createLiveMatch(request);
+
+    await registerNewPlayer(page);
+    await page.goto("/matches");
+    await page.getByRole("button", { name: `${match.teamA} to win at 1.80` }).click();
+    await slip(page).getByRole("button", { name: "Place bet" }).click();
+    await expect(page).toHaveURL("/my-bets");
+
+    await page.goto("/matches");
+    await expect(page.getByRole("status")).toHaveText("Live updates on");
+    await page.getByRole("button", { name: "Open bet slip" }).click();
+    await slip(page).getByRole("tab", { name: "My bets" }).click();
+    const bet = slip(page).getByRole("listitem", { name: `${match.teamA} to win, pending` });
+    await expect(bet.getByRole("button", { name: "Withdraw 100 CR" })).toBeVisible();
+
+    // Team A becomes the favourite: 100 × 1.80 ÷ 1.20 = 150, without refetching.
+    await updateMatch(request, match.id, { scoreA: 6, oddsA: 1.2, oddsB: 4.0 });
+    await expect(bet.getByTestId("current-odds")).toHaveText("· now 1.20");
+    await bet.getByRole("button", { name: "Withdraw 150 CR" }).click();
+    await bet.getByRole("button", { name: "Confirm withdraw 150 CR" }).click();
+
+    await expect(page.getByText("Cashed out 150 CR.")).toBeVisible();
+    await expect(page.getByRole("banner").getByRole("link", { name: "Wallet: 1,050 CR" })).toBeVisible();
+    await expect(slip(page)).toContainText("No open bets.");
+
+    await slip(page).getByRole("tab", { name: "Settled" }).click();
+    await expect(slip(page).getByRole("listitem", { name: `${match.teamA} to win, cashed out` })).toContainText("Cashed out 150 CR");
+
+    // The match ending later pays nothing more.
+    await updateMatch(request, match.id, { scoreA: 13, state: "FINISHED", winner: "A" });
+    await page.goto("/my-bets");
+    await expect(page.getByTestId("wallet-balance")).toContainText("1,050");
+    await expect(page.getByRole("listitem", { name: `${match.teamA} to win, cashed out` })).toBeVisible();
+  });
+
+  test("a withdraw is refused when the value has dropped since it was shown", async ({ page, request }) => {
+    const match = await createLiveMatch(request);
+
+    await registerNewPlayer(page);
+    await page.goto("/matches");
+    await page.getByRole("button", { name: `${match.teamA} to win at 1.80` }).click();
+    await slip(page).getByRole("button", { name: "Place bet" }).click();
+    await expect(page).toHaveURL("/my-bets");
+
+    // Cut the live feed (socket and fallback polling), so the page keeps showing the old price.
+    await page.routeWebSocket(/.*/, () => {});
+    await page.route("**/api/graphql", (route) =>
+      route.request().postData()?.includes("query Matches") ? route.abort() : route.fallback(),
+    );
+    await page.goto("/matches");
+    await page.getByRole("button", { name: "Open bet slip" }).click();
+    await slip(page).getByRole("tab", { name: "My bets" }).click();
+    const bet = slip(page).getByRole("listitem", { name: `${match.teamA} to win, pending` });
+    await bet.getByRole("button", { name: "Withdraw 100 CR" }).click();
+
+    // The price moves against the player before they confirm: 100 × 1.80 ÷ 3.60 = 50.
+    await updateMatch(request, match.id, { oddsA: 3.6, oddsB: 1.3 });
+    await bet.getByRole("button", { name: "Confirm withdraw 100 CR" }).click();
+
+    await expect(page.getByText("Cash-out value changed to 50 CR.")).toBeVisible();
+    await expect(bet).toBeVisible();
+    await expect(page.getByRole("banner").getByRole("link", { name: "Wallet: 900 CR" })).toBeVisible();
+  });
+
+  test("My bets lists come from cache until the player's bets change", async ({ page }) => {
+    const slipBetsRequests: string[] = [];
+    page.on("request", (req) => {
+      if (req.url().endsWith("/api/graphql") && req.postData()?.includes("query SlipBets")) {
+        slipBetsRequests.push(req.postData()!);
+      }
+    });
+
+    await registerNewPlayer(page);
+    await page.goto("/matches");
+    await page.getByRole("button", { name: "Open bet slip" }).click();
+    await slip(page).getByRole("tab", { name: "My bets" }).click();
+    await expect(slip(page)).toContainText("No open bets.");
+    await slip(page).getByRole("tab", { name: "Settled" }).click();
+    await expect(slip(page)).toContainText("No settled bets yet.");
+    const loaded = slipBetsRequests.length;
+
+    // Switching back and forth again is served from cache.
+    await slip(page).getByRole("tab", { name: "Open" }).click();
+    await expect(slip(page)).toContainText("No open bets.");
+    await slip(page).getByRole("tab", { name: "Settled" }).click();
+    await expect(slip(page)).toContainText("No settled bets yet.");
+    expect(slipBetsRequests).toHaveLength(loaded);
+
+    // Placing a bet makes the cached lists stale: the next look shows it.
+    await slip(page).getByRole("tab", { name: /Bet slip/ }).click();
+    await page.getByRole("button", { name: "NAVI to win at 1.85" }).click();
+    await slip(page).getByRole("button", { name: "Place bet" }).click();
+    await expect(page).toHaveURL("/my-bets");
+    await page.getByRole("button", { name: "Open bet slip" }).click();
+    await slip(page).getByRole("tab", { name: "My bets" }).click();
+    await expect(slip(page).getByRole("listitem", { name: "NAVI to win, pending" })).toBeVisible();
+  });
+
   test("a combo stays pending until every pick has won, then pays the total odds", async ({ page, request }) => {
     const first = await createLiveMatch(request);
     const second = await createLiveMatch(request);
@@ -271,13 +378,24 @@ test.describe("live updates", () => {
     await registerNewPlayer(page);
     await page.goto("/matches");
     await page.getByRole("button", { name: `${first.teamA} to win at 1.80` }).click();
+    // The first pick opens the slip; close it so it can't cover the second match's card.
+    await page.keyboard.press("Escape");
     await page.getByRole("button", { name: `${second.teamA} to win at 1.80` }).click();
+    await page.getByRole("button", { name: "Open bet slip (2 selections)" }).click();
     await expect(slip(page).getByTestId("total-odds")).toHaveText("@ 3.24");
     await slip(page).getByRole("button", { name: "Place combo bet (2)" }).click();
 
     await expect(page).toHaveURL("/my-bets");
     await expect(page.getByText("Combo placed. Potential payout 324 CR.")).toBeVisible();
     await expect(page.getByTestId("wallet-balance")).toContainText("900");
+
+    // Combos can't be withdrawn.
+    await page.getByRole("button", { name: "Open bet slip" }).click();
+    await slip(page).getByRole("tab", { name: "My bets" }).click();
+    const combo = slip(page).getByRole("listitem", { name: "Combo of 2, pending" });
+    await expect(combo).toBeVisible();
+    await expect(combo.getByRole("button", { name: /Withdraw/ })).toHaveCount(0);
+    await page.keyboard.press("Escape");
 
     await updateMatch(request, first.id, { scoreA: 13, state: "FINISHED", winner: "A" });
     await page.reload();

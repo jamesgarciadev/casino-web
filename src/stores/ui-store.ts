@@ -8,6 +8,14 @@ export type SlipSelection = { matchId: string; side: Side };
 /** The slip panel's tabs: the picks being built, or a quick look at the player's bets. */
 export type SlipTab = "slip" | "bets";
 
+export type BetsFilter = "open" | "settled";
+
+/** When a My bets list was last loaded from be, and at which `betsVersion`. */
+export type BetsSync = { version: number; at: number };
+
+/** Cached My bets pages older than this are refetched when shown, in case an update was missed. */
+export const BETS_MAX_AGE_MS = 60_000;
+
 export type UiState = {
   /**
    * The bet slip's picks, at most one per match, in the order they were picked. One pick is a single, two or more
@@ -18,6 +26,12 @@ export type UiState = {
   /** Whether the slip panel is showing; the floating button opens it even when it is empty. */
   slipOpen: boolean;
   slipTab: SlipTab;
+  /**
+   * Bumped whenever the player's bets change (placed, cashed out, settled). My bets lists are served from urql's
+   * cache while their sync matches the current version, and refetched from be once it moves on.
+   */
+  betsVersion: number;
+  betsSynced: Partial<Record<BetsFilter, BetsSync>>;
 };
 
 export type UiActions = {
@@ -30,6 +44,8 @@ export type UiActions = {
   clearSlip: () => void;
   setSlipOpen: (open: boolean) => void;
   setSlipTab: (tab: SlipTab) => void;
+  bumpBets: () => void;
+  markBetsSynced: (filter: BetsFilter, version: number, at: number) => void;
   setStake: (stake: number) => void;
 };
 
@@ -40,7 +56,16 @@ export const defaultUiState: UiState = {
   stake: 100,
   slipOpen: false,
   slipTab: "slip",
+  betsVersion: 0,
+  betsSynced: {},
 };
+
+/** Whether a My bets list can be shown from cache, or must be loaded from be first. */
+export function betsAreFresh(state: Pick<UiState, "betsVersion" | "betsSynced">, filter: BetsFilter, now: number): boolean {
+  const sync = state.betsSynced[filter];
+
+  return sync !== undefined && sync.version === state.betsVersion && now - sync.at < BETS_MAX_AGE_MS;
+}
 
 export function createUiStore(initialState: UiState = defaultUiState) {
   return createStore<UiStore>()((set) => ({
@@ -66,6 +91,8 @@ export function createUiStore(initialState: UiState = defaultUiState) {
     clearSlip: () => set({ selections: [] }),
     setSlipOpen: (slipOpen) => set({ slipOpen }),
     setSlipTab: (slipTab) => set({ slipTab }),
+    bumpBets: () => set((state) => ({ betsVersion: state.betsVersion + 1 })),
+    markBetsSynced: (filter, version, at) => set((state) => ({ betsSynced: { ...state.betsSynced, [filter]: { version, at } } })),
     setStake: (stake) => set({ stake: Number.isFinite(stake) ? Math.max(0, Math.round(stake)) : 0 }),
   }));
 }

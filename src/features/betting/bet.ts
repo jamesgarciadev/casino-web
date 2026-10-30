@@ -8,7 +8,13 @@ export const BET_STATUS_STYLES: Record<BetStatus, string> = {
   PENDING: "border-accent/40 bg-accent/10 text-accent",
   WON: "border-live/40 bg-live/10 text-live",
   LOST: "border-destructive/40 bg-destructive/10 text-destructive",
+  CASHED_OUT: "border-border bg-secondary text-foreground",
 };
+
+/** "cashed out" for CASHED_OUT: how statuses read in labels and badges. */
+export function statusLabel(status: BetStatus): string {
+  return status.toLowerCase().replace("_", " ");
+}
 
 export function pickTeam(pick: BetPick): string {
   return pick.side === "A" ? pick.match.teamA : pick.match.teamB;

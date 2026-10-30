@@ -86,6 +86,7 @@ export const BetFieldsFragment = graphql(`
     stake
     odds
     payout
+    cashOut
     status
     placedAt
     selections {
@@ -137,6 +138,20 @@ export const PlaceComboBetMutation = graphql(`
       bet {
         id
         payout
+      }
+      wallet {
+        balance
+      }
+    }
+  }
+`);
+
+export const CashOutBetMutation = graphql(`
+  mutation CashOutBet($input: CashOutBetInput!) {
+    cashOutBet(input: $input) {
+      bet {
+        id
+        cashOut
       }
       wallet {
         balance

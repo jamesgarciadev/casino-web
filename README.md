@@ -36,6 +36,16 @@ odds from other matches turn it into a **Combo** with a match count and **Total 
 way as be's `Bet::totalOdds`). Picking the other team of a match already on the slip swaps that pick, since a combo
 can't back one match twice. Only the first pick opens the slip, so it doesn't cover the odds while a combo is built.
 
+The slip's **My bets** tab shows Open and Settled bets, 10 at a time with more loaded on scroll. Open singles show their
+live odds and a **Withdraw** (cash-out) button whose value follows them; the first tap asks to confirm. Caching:
+
+- Pages come from urql's cache while the list's last load from be is current: the same `betsVersion` in the UI store
+  and under a minute old. Otherwise they are loaded from be (`src/stores/ui-store.ts`, `betsAreFresh`).
+- `betsVersion` moves when a bet is placed, cashed out, or one of its matches finishes (seen on the live feed), so the
+  tab only waits on be when something changed. Live odds, scores and cash-out values come from the match feed, never
+  from refetching.
+- The first page of open bets is prefetched when the slip opens or its button is hovered or focused.
+
 ## How live updates work
 
 - Server components render matches from be (`features/betting/queries.ts`) for the first paint.

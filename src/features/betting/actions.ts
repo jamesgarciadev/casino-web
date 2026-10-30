@@ -5,7 +5,7 @@ import { z } from "zod";
 
 import { getSessionToken } from "@/lib/auth/session";
 import { isUnauthenticated } from "@/lib/graphql/errors";
-import { PlaceBetMutation, PlaceComboBetMutation, TopUpWalletMutation } from "@/lib/graphql/operations";
+import { CashOutBetMutation, PlaceBetMutation, PlaceComboBetMutation, TopUpWalletMutation } from "@/lib/graphql/operations";
 import { gqlRequest } from "@/lib/graphql/server";
 
 export type BetResult = { ok: true; payout: number; balance: number } | { ok: false; message: string };
@@ -45,6 +45,30 @@ export async function placeBetAction(input: z.input<typeof placeBetSchema>): Pro
   refresh();
 
   return { ok: true, payout: data.bet.payout, balance: data.wallet.balance };
+}
+
+const cashOutSchema = z.object({
+  betId: z.string().regex(/^\d+$/),
+  expected: z.number().int().min(0),
+});
+
+export type CashOutResult = { ok: true; cashOut: number; balance: number } | { ok: false; message: string };
+
+/** Withdraw an open single. be refuses if the value has dropped below `expected`, the value the player was shown. */
+export async function cashOutAction(input: z.input<typeof cashOutSchema>): Promise<CashOutResult> {
+  const parsed = cashOutSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, message: parsed.error.issues[0].message };
+  }
+
+  const { data, errors } = await gqlRequest(CashOutBetMutation, { input: parsed.data });
+  if (!data?.cashOutBet) {
+    return { ok: false, message: isUnauthenticated(errors) ? SIGNED_OUT : (errors[0]?.message ?? "The bet could not be cashed out.") };
+  }
+
+  refresh();
+
+  return { ok: true, cashOut: data.cashOutBet.bet.cashOut ?? 0, balance: data.cashOutBet.wallet.balance };
 }
 
 export async function topUpWalletAction(): Promise<{ balance: number } | { message: string }> {

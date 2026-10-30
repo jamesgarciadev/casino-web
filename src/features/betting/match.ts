@@ -42,6 +42,17 @@ export function potentialPayout(stake: number, odds: number): number {
   return Math.floor((stake * Math.round(odds * 100) + 50) / 100);
 }
 
+/**
+ * What an open single is worth now: stake × placed odds ÷ current odds, rounded half up to whole credits. The same
+ * integer maths as be's Bet::cashOutValue.
+ */
+export function cashOutValue(stake: number, placedOdds: number, currentOdds: number): number {
+  const placed = Math.round(placedOdds * 100);
+  const current = Math.round(currentOdds * 100);
+
+  return Math.floor((2 * stake * placed + current) / (2 * current));
+}
+
 export function formatCredits(credits: number): string {
   return `${credits.toLocaleString("en-US")} CR`;
 }

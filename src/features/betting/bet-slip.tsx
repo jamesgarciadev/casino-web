@@ -14,7 +14,7 @@ import type { SlipSelection } from "@/stores/ui-store";
 import { placeBetAction } from "./actions";
 import { useKnownMatchMap } from "./live-matches";
 import { formatCredits, formatOdds, oddsFor, potentialPayout, teamName, totalOdds, type Match } from "./match";
-import { SlipBets } from "./slip-bets";
+import { SlipBets, usePrefetchOpenBets } from "./slip-bets";
 
 const CHIPS = [50, 100, 250];
 
@@ -43,22 +43,26 @@ export function BetSlip({ signedIn }: { signedIn: boolean }) {
   const tab = useUiStore((s) => s.slipTab);
   const setTab = useUiStore((s) => s.setSlipTab);
   const picks = usePicks();
+  const prefetchOpenBets = usePrefetchOpenBets(signedIn);
 
   useEffect(() => {
     if (!open) {
       return;
     }
 
+    prefetchOpenBets();
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [open, setOpen]);
+  }, [open, setOpen, prefetchOpenBets]);
 
   if (!open) {
     return (
       <button
         type="button"
         onClick={() => setOpen(true)}
+        onPointerEnter={prefetchOpenBets}
+        onFocus={prefetchOpenBets}
         aria-label={picks.length ? `Open bet slip (${picks.length} ${picks.length === 1 ? "selection" : "selections"})` : "Open bet slip"}
         className="fixed right-4 bottom-4 z-50 grid size-14 cursor-pointer place-items-center rounded-full border border-primary/50 bg-popover text-primary shadow-[0_0_30px_-6px_var(--primary)] transition hover:-translate-y-0.5 hover:scale-105 hover:shadow-[0_0_40px_-4px_var(--primary)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary md:right-6 md:bottom-6"
       >
@@ -183,6 +187,7 @@ function SlipPicks({ picks, signedIn }: { picks: Pick[]; signedIn: boolean }) {
   const removeSelection = useUiStore((s) => s.removeSelection);
   const clearSlip = useUiStore((s) => s.clearSlip);
   const setOpen = useUiStore((s) => s.setSlipOpen);
+  const bumpBets = useUiStore((s) => s.bumpBets);
   const router = useRouter();
   const [placing, startPlacing] = useTransition();
 
@@ -201,6 +206,7 @@ function SlipPicks({ picks, signedIn }: { picks: Pick[]; signedIn: boolean }) {
       }
 
       toast.success(`${combo ? "Combo" : "Bet"} placed. Potential payout ${formatCredits(result.payout)}.`);
+      bumpBets();
       clearSlip();
       setOpen(false);
       router.push("/my-bets");
