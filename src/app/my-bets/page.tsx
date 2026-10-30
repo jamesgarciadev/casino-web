@@ -4,7 +4,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 
 import { buttonVariants } from "@/components/ui/button";
-import type { BetStatus } from "@/gql/graphql";
+import { BET_STATUS_STYLES, betLabel, pickTeam } from "@/features/betting/bet";
 import { formatCredits, formatOdds, gameLabel } from "@/features/betting/match";
 import { getMyBets, getWalletBalance } from "@/features/betting/queries";
 import { TopUpButton } from "@/features/betting/top-up-button";
@@ -12,18 +12,6 @@ import { requireUser } from "@/lib/auth/dal";
 import { cn } from "@/lib/cn";
 
 export const metadata: Metadata = { title: "My bets & wallet" };
-
-const STATUS_STYLES: Record<BetStatus, string> = {
-  PENDING: "border-accent/40 bg-accent/10 text-accent",
-  WON: "border-live/40 bg-live/10 text-live",
-  LOST: "border-destructive/40 bg-destructive/10 text-destructive",
-};
-
-type Selection = Awaited<ReturnType<typeof getMyBets>>[number]["selections"][number];
-
-function pickTeam(selection: Selection): string {
-  return selection.side === "A" ? selection.match.teamA : selection.match.teamB;
-}
 
 const placedFormat = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
 
@@ -73,13 +61,11 @@ async function WalletAndBets() {
         <ul className="mt-6 space-y-3">
           {bets.map((bet) => {
             const combo = bet.type === "COMBO";
-            const [first] = bet.selections;
-            const label = combo ? `Combo of ${bet.selections.length}` : `${pickTeam(first)} to win`;
 
             return (
               <li
                 key={bet.id}
-                aria-label={`${label}, ${bet.status.toLowerCase()}`}
+                aria-label={`${betLabel(bet)}, ${bet.status.toLowerCase()}`}
                 className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-border bg-card px-5 py-4"
               >
                 <div className="min-w-0 flex-1">
@@ -95,7 +81,7 @@ async function WalletAndBets() {
                         <p className="flex items-center gap-2 font-display text-xs font-bold uppercase text-primary">
                           {gameLabel(selection.match)}
                           {combo && (
-                            <span className={cn("rounded-full border px-1.5 text-[9px]", STATUS_STYLES[selection.status])}>{selection.status}</span>
+                            <span className={cn("rounded-full border px-1.5 text-[9px]", BET_STATUS_STYLES[selection.status])}>{selection.status}</span>
                           )}
                         </p>
                         <p className="mt-0.5 truncate font-display text-sm font-bold">
@@ -129,7 +115,7 @@ async function WalletAndBets() {
                       {formatCredits(bet.payout)}
                     </p>
                   </div>
-                  <span className={cn("rounded-full border px-3 py-1 font-display text-[10px] font-bold uppercase tracking-wider", STATUS_STYLES[bet.status])}>
+                  <span className={cn("rounded-full border px-3 py-1 font-display text-[10px] font-bold uppercase tracking-wider", BET_STATUS_STYLES[bet.status])}>
                     {bet.status}
                   </span>
                 </div>

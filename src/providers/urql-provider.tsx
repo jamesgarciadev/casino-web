@@ -14,6 +14,8 @@ export function UrqlProvider({ children }: { children: ReactNode }) {
         url: "/api/graphql",
         exchanges: [cacheExchange, fetchExchange],
         fetchOptions: { credentials: "same-origin" },
+        // urql sends short queries as GET by default; the proxy only accepts POST.
+        preferGetMethod: false,
       }),
   );
 

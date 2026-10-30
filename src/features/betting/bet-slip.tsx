@@ -1,6 +1,6 @@
 "use client";
 
-import { Coins, Layers, Ticket, Trash2, X } from "lucide-react";
+import { ChevronDown, Coins, Layers, ListChecks, Ticket, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useTransition } from "react";
@@ -14,6 +14,7 @@ import type { SlipSelection } from "@/stores/ui-store";
 import { placeBetAction } from "./actions";
 import { useKnownMatchMap } from "./live-matches";
 import { formatCredits, formatOdds, oddsFor, potentialPayout, teamName, totalOdds, type Match } from "./match";
+import { SlipBets } from "./slip-bets";
 
 const CHIPS = [50, 100, 250];
 
@@ -39,6 +40,8 @@ function usePicks(): Pick[] {
 export function BetSlip({ signedIn }: { signedIn: boolean }) {
   const open = useUiStore((s) => s.slipOpen);
   const setOpen = useUiStore((s) => s.setSlipOpen);
+  const tab = useUiStore((s) => s.slipTab);
+  const setTab = useUiStore((s) => s.setSlipTab);
   const picks = usePicks();
 
   useEffect(() => {
@@ -74,22 +77,52 @@ export function BetSlip({ signedIn }: { signedIn: boolean }) {
       aria-label="Bet slip"
       className="fixed inset-x-0 bottom-0 z-50 flex max-h-[85dvh] flex-col rounded-t-2xl border border-primary/40 bg-popover p-4 shadow-[0_-10px_40px_-10px_var(--primary)] md:inset-x-auto md:right-6 md:bottom-6 md:w-96 md:rounded-2xl"
     >
-      <div className="mb-3 flex items-center justify-between">
-        <h2 className="flex items-center gap-2 font-display text-sm font-extrabold uppercase tracking-wider">
-          <Ticket className="size-4 text-primary" />
-          Bet slip
-        </h2>
+      <div className="mb-3 flex items-stretch gap-2">
+        <div role="tablist" aria-label="Bet slip views" className="grid flex-1 grid-cols-2 rounded-md bg-background p-0.5">
+          {(
+            [
+              ["slip", "Bet slip", Ticket],
+              ["bets", "My bets", ListChecks],
+            ] as const
+          ).map(([value, label, Icon]) => (
+            <button
+              key={value}
+              type="button"
+              role="tab"
+              aria-selected={tab === value}
+              onClick={() => setTab(value)}
+              className={cn(
+                "flex cursor-pointer items-center justify-center gap-1.5 rounded py-2 font-display text-xs font-extrabold uppercase tracking-wider transition-colors",
+                tab === value ? "bg-secondary text-foreground" : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              <Icon className={cn("size-3.5", tab === value && "text-primary")} />
+              {label}
+              {value === "slip" && picks.length > 0 && (
+                <span className="grid h-4 min-w-4 place-items-center rounded-full bg-primary px-1 text-[10px] text-primary-foreground tabular-nums">
+                  {picks.length}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
         <button
           type="button"
           onClick={() => setOpen(false)}
           aria-label="Close bet slip"
-          className="cursor-pointer rounded p-1 text-muted-foreground hover:bg-secondary hover:text-foreground"
+          className="grid w-9 shrink-0 cursor-pointer place-items-center rounded-md bg-background text-muted-foreground hover:bg-secondary hover:text-foreground"
         >
-          <X className="size-4" />
+          <ChevronDown className="size-4" />
         </button>
       </div>
 
-      {picks.length > 0 ? <SlipPicks picks={picks} signedIn={signedIn} /> : <EmptySlip />}
+      {tab === "bets" ? (
+        <SlipBets signedIn={signedIn} />
+      ) : picks.length > 0 ? (
+        <SlipPicks picks={picks} signedIn={signedIn} />
+      ) : (
+        <EmptySlip />
+      )}
     </aside>
   );
 }

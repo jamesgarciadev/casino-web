@@ -22,7 +22,9 @@ type Documents = {
     "\n  query Matches($state: MatchState, $game: String) {\n    matches(state: $state, game: $game) {\n      ...MatchFields\n    }\n  }\n": typeof types.MatchesDocument,
     "\n  subscription MatchUpdated {\n    matchUpdated {\n      ...MatchFields\n    }\n  }\n": typeof types.MatchUpdatedDocument,
     "\n  query Wallet {\n    wallet {\n      balance\n    }\n  }\n": typeof types.WalletDocument,
-    "\n  query MyBets {\n    myBets {\n      id\n      type\n      stake\n      odds\n      payout\n      status\n      placedAt\n      selections {\n        id\n        side\n        odds\n        status\n        match {\n          ...MatchFields\n        }\n      }\n    }\n  }\n": typeof types.MyBetsDocument,
+    "\n  fragment BetFields on Bet {\n    id\n    type\n    stake\n    odds\n    payout\n    status\n    placedAt\n    selections {\n      id\n      side\n      odds\n      status\n      match {\n        ...MatchFields\n      }\n    }\n  }\n": typeof types.BetFieldsFragmentDoc,
+    "\n  query MyBets {\n    myBets {\n      ...BetFields\n    }\n  }\n": typeof types.MyBetsDocument,
+    "\n  query SlipBets($open: Boolean!, $first: Int!, $before: ID) {\n    myBets(open: $open, first: $first, before: $before) {\n      ...BetFields\n    }\n  }\n": typeof types.SlipBetsDocument,
     "\n  mutation PlaceBet($input: PlaceBetInput!) {\n    placeBet(input: $input) {\n      bet {\n        id\n        payout\n      }\n      wallet {\n        balance\n      }\n    }\n  }\n": typeof types.PlaceBetDocument,
     "\n  mutation PlaceComboBet($input: PlaceComboBetInput!) {\n    placeComboBet(input: $input) {\n      bet {\n        id\n        payout\n      }\n      wallet {\n        balance\n      }\n    }\n  }\n": typeof types.PlaceComboBetDocument,
     "\n  mutation TopUpWallet {\n    topUpWallet {\n      balance\n    }\n  }\n": typeof types.TopUpWalletDocument,
@@ -36,7 +38,9 @@ const documents: Documents = {
     "\n  query Matches($state: MatchState, $game: String) {\n    matches(state: $state, game: $game) {\n      ...MatchFields\n    }\n  }\n": types.MatchesDocument,
     "\n  subscription MatchUpdated {\n    matchUpdated {\n      ...MatchFields\n    }\n  }\n": types.MatchUpdatedDocument,
     "\n  query Wallet {\n    wallet {\n      balance\n    }\n  }\n": types.WalletDocument,
-    "\n  query MyBets {\n    myBets {\n      id\n      type\n      stake\n      odds\n      payout\n      status\n      placedAt\n      selections {\n        id\n        side\n        odds\n        status\n        match {\n          ...MatchFields\n        }\n      }\n    }\n  }\n": types.MyBetsDocument,
+    "\n  fragment BetFields on Bet {\n    id\n    type\n    stake\n    odds\n    payout\n    status\n    placedAt\n    selections {\n      id\n      side\n      odds\n      status\n      match {\n        ...MatchFields\n      }\n    }\n  }\n": types.BetFieldsFragmentDoc,
+    "\n  query MyBets {\n    myBets {\n      ...BetFields\n    }\n  }\n": types.MyBetsDocument,
+    "\n  query SlipBets($open: Boolean!, $first: Int!, $before: ID) {\n    myBets(open: $open, first: $first, before: $before) {\n      ...BetFields\n    }\n  }\n": types.SlipBetsDocument,
     "\n  mutation PlaceBet($input: PlaceBetInput!) {\n    placeBet(input: $input) {\n      bet {\n        id\n        payout\n      }\n      wallet {\n        balance\n      }\n    }\n  }\n": types.PlaceBetDocument,
     "\n  mutation PlaceComboBet($input: PlaceComboBetInput!) {\n    placeComboBet(input: $input) {\n      bet {\n        id\n        payout\n      }\n      wallet {\n        balance\n      }\n    }\n  }\n": types.PlaceComboBetDocument,
     "\n  mutation TopUpWallet {\n    topUpWallet {\n      balance\n    }\n  }\n": types.TopUpWalletDocument,
@@ -91,7 +95,15 @@ export function graphql(source: "\n  query Wallet {\n    wallet {\n      balance
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  query MyBets {\n    myBets {\n      id\n      type\n      stake\n      odds\n      payout\n      status\n      placedAt\n      selections {\n        id\n        side\n        odds\n        status\n        match {\n          ...MatchFields\n        }\n      }\n    }\n  }\n"): (typeof documents)["\n  query MyBets {\n    myBets {\n      id\n      type\n      stake\n      odds\n      payout\n      status\n      placedAt\n      selections {\n        id\n        side\n        odds\n        status\n        match {\n          ...MatchFields\n        }\n      }\n    }\n  }\n"];
+export function graphql(source: "\n  fragment BetFields on Bet {\n    id\n    type\n    stake\n    odds\n    payout\n    status\n    placedAt\n    selections {\n      id\n      side\n      odds\n      status\n      match {\n        ...MatchFields\n      }\n    }\n  }\n"): (typeof documents)["\n  fragment BetFields on Bet {\n    id\n    type\n    stake\n    odds\n    payout\n    status\n    placedAt\n    selections {\n      id\n      side\n      odds\n      status\n      match {\n        ...MatchFields\n      }\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query MyBets {\n    myBets {\n      ...BetFields\n    }\n  }\n"): (typeof documents)["\n  query MyBets {\n    myBets {\n      ...BetFields\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query SlipBets($open: Boolean!, $first: Int!, $before: ID) {\n    myBets(open: $open, first: $first, before: $before) {\n      ...BetFields\n    }\n  }\n"): (typeof documents)["\n  query SlipBets($open: Boolean!, $first: Int!, $before: ID) {\n    myBets(open: $open, first: $first, before: $before) {\n      ...BetFields\n    }\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

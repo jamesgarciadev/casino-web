@@ -79,25 +79,40 @@ export const WalletQuery = graphql(`
   }
 `);
 
+export const BetFieldsFragment = graphql(`
+  fragment BetFields on Bet {
+    id
+    type
+    stake
+    odds
+    payout
+    status
+    placedAt
+    selections {
+      id
+      side
+      odds
+      status
+      match {
+        ...MatchFields
+      }
+    }
+  }
+`);
+
 export const MyBetsQuery = graphql(`
   query MyBets {
     myBets {
-      id
-      type
-      stake
-      odds
-      payout
-      status
-      placedAt
-      selections {
-        id
-        side
-        odds
-        status
-        match {
-          ...MatchFields
-        }
-      }
+      ...BetFields
+    }
+  }
+`);
+
+/** The bet slip's My bets tab: one page of open (pending) or settled bets, older than `before`. */
+export const SlipBetsQuery = graphql(`
+  query SlipBets($open: Boolean!, $first: Int!, $before: ID) {
+    myBets(open: $open, first: $first, before: $before) {
+      ...BetFields
     }
   }
 `);

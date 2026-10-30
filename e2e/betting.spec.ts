@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 
-import { createLiveMatch, registerNewPlayer, updateMatch } from "./support";
+import { api, createLiveMatch, newAccount, registerNewPlayer, signIn, updateMatch } from "./support";
 
 // Seeded by casino-be's FixtureSeeder (the design's demo matches): two live, the rest upcoming.
 const card = (page: Page, teams: string) => page.getByRole("article", { name: teams });
@@ -156,6 +156,52 @@ test.describe("bet slip", () => {
     await expect(page.getByTestId("wallet-balance")).toContainText("1,500");
   });
 
+  test("the slip's My bets tab asks signed-out players to log in", async ({ page }) => {
+    await page.goto("/matches");
+    await page.getByRole("button", { name: "Open bet slip" }).click();
+    await slip(page).getByRole("tab", { name: "My bets" }).click();
+
+    await expect(slip(page)).toContainText("Log in to see your open and settled bets.");
+    await expect(slip(page).getByRole("link", { name: "Log in" })).toHaveAttribute("href", "/login");
+
+    // A new pick brings the slip back to its picks.
+    await page.getByRole("button", { name: "NAVI to win at 1.85" }).click();
+    await expect(slip(page).getByRole("tab", { name: /Bet slip/ })).toHaveAttribute("aria-selected", "true");
+    await expect(slip(page)).toContainText("NAVI to win");
+  });
+
+  test("the slip's My bets tab loads 10 bets at a time as it scrolls", async ({ page, request }) => {
+    // Twelve 1 CR bets placed straight through be's API, then the same player signs in.
+    const account = newAccount();
+    const { register } = await api<{ register: { token: string } }>(
+      request,
+      "mutation ($input: RegisterInput!) { register(input: $input) { token } }",
+      { input: { name: account.name, email: account.email, password: account.password, passwordConfirmation: account.password } },
+    );
+    const { matches } = await api<{ matches: { id: string; teamA: string }[] }>(request, "{ matches { id teamA } }");
+    const navi = matches.find((m) => m.teamA === "NAVI")!;
+    for (let i = 0; i < 12; i++) {
+      await api(
+        request,
+        "mutation ($input: PlaceBetInput!) { placeBet(input: $input) { bet { id } } }",
+        { input: { matchId: navi.id, side: "A", stake: 1 } },
+        register.token,
+      );
+    }
+
+    await signIn(page, account);
+    await page.waitForURL("/account");
+    await page.goto("/matches");
+    await page.getByRole("button", { name: "Open bet slip" }).click();
+    await slip(page).getByRole("tab", { name: "My bets" }).click();
+
+    const bets = slip(page).getByRole("list", { name: "Open bets" }).getByRole("listitem", { name: "NAVI to win, pending" });
+    await expect(bets).toHaveCount(10);
+
+    await bets.nth(9).scrollIntoViewIfNeeded();
+    await expect(bets).toHaveCount(12);
+  });
+
   test("My bets requires signing in", async ({ page }) => {
     await page.goto("/my-bets");
     await expect(page).toHaveURL("/login");
@@ -188,6 +234,34 @@ test.describe("live updates", () => {
 
     await page.goto("/my-bets");
     await expect(page.getByRole("listitem", { name: `${match.teamA} to win, won` })).toContainText("180 CR");
+  });
+
+  test("the slip's My bets tab lists open bets and moves them to Settled when the match ends", async ({ page, request }) => {
+    const match = await createLiveMatch(request);
+
+    await registerNewPlayer(page);
+    await page.goto("/matches");
+    await page.getByRole("button", { name: `${match.teamA} to win at 1.80` }).click();
+    await slip(page).getByRole("button", { name: "Place bet" }).click();
+    await expect(page).toHaveURL("/my-bets");
+
+    await page.goto("/matches");
+    await expect(page.getByRole("status")).toHaveText("Live updates on");
+    await page.getByRole("button", { name: "Open bet slip" }).click();
+    await slip(page).getByRole("tab", { name: "My bets" }).click();
+    await expect(slip(page).getByRole("tab", { name: "Open" })).toHaveAttribute("aria-selected", "true");
+    await expect(slip(page).getByRole("listitem", { name: `${match.teamA} to win, pending` })).toContainText("180 CR");
+
+    await slip(page).getByRole("tab", { name: "Settled" }).click();
+    await expect(slip(page)).toContainText("No settled bets yet.");
+    await slip(page).getByRole("tab", { name: "Open" }).click();
+
+    // The match ends while the tab is showing: the open list reloads without the settled bet.
+    await updateMatch(request, match.id, { scoreA: 13, state: "FINISHED", winner: "A" });
+    await expect(slip(page)).toContainText("No open bets.");
+
+    await slip(page).getByRole("tab", { name: "Settled" }).click();
+    await expect(slip(page).getByRole("listitem", { name: `${match.teamA} to win, won` })).toContainText("Paid 180 CR");
   });
 
   test("a combo stays pending until every pick has won, then pays the total odds", async ({ page, request }) => {

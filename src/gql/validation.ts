@@ -348,7 +348,10 @@ export type Query = {
   matches: Array<Match>;
   /** The currently authenticated user (any token scope). */
   me?: Maybe<User>;
-  /** The signed-in customer's bets, newest first (latest 100). */
+  /**
+   * The signed-in customer's bets, newest first. open: true for PENDING bets only, false for settled (WON or LOST) only.
+   * Page with first (1-100, default 100) and before: the id of the last bet already loaded.
+   */
   myBets: Array<Bet>;
   /** Esports titles PandaScore covers. Public. */
   videogames: Array<Videogame>;
@@ -392,6 +395,13 @@ export type QueryMatchArgs = {
 export type QueryMatchesArgs = {
   game?: InputMaybe<Scalars['String']['input']>;
   state?: InputMaybe<MatchState>;
+};
+
+
+export type QueryMyBetsArgs = {
+  before?: InputMaybe<Scalars['ID']['input']>;
+  first?: InputMaybe<Scalars['Int']['input']>;
+  open?: InputMaybe<Scalars['Boolean']['input']>;
 };
 
 export type RegisterInput = {
