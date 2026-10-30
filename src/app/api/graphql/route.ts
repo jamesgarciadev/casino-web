@@ -49,5 +49,10 @@ export async function POST(request: NextRequest) {
     await getSessionToken(),
   );
 
-  return NextResponse.json({ data: result.data, ...(result.errors.length ? { errors: result.errors } : {}) });
+  return NextResponse.json({
+    data: result.data,
+    ...(result.errors.length ? { errors: result.errors } : {}),
+    // Subscriptions return the Reverb channel to listen on here.
+    ...(result.extensions ? { extensions: result.extensions } : {}),
+  });
 }

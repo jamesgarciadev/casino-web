@@ -1,20 +1,49 @@
 # casino-web
 
-Customer-facing Casino app. Next.js 16 (App Router, Cache Components), Zustand, Zod, urql.
-Talks only to `casino-be` over GraphQL. See [ARCHITECTURE.md](ARCHITECTURE.md).
+**0dds.bet**, the customer app: live esports odds, bet slips and a play-money wallet. Next.js 16 (App Router,
+Cache Components), Tailwind 4, Zustand, Zod, urql, pusher-js. Talks only to `casino-be` over GraphQL.
+See [ARCHITECTURE.md](ARCHITECTURE.md).
+
+The design comes from `../casino-design` (the "Crimson Heat" Lovable export): tokens and utilities live in
+`src/app/globals.css`, button variants in `src/components/ui/button.tsx`.
 
 ## Run locally
 
-Requires `casino-be` running on http://localhost:8000, with the repos cloned side by side.
+Requires `casino-be` running on http://localhost:8000 with `php artisan reverb:start` for live updates, and the repos
+cloned side by side. For matches that actually move, also run `casino-sim` (`php sim sim:run --speed=20`).
 
 ```sh
 npm install
-cp .env.example .env.local
+cp .env.example .env.local   # set REVERB_APP_KEY to casino-be's value
 npm run codegen   # types + Zod base schemas from ../casino-be/graphql/schema.public.graphql
 npm run dev       # http://localhost:3000
 ```
 
-Sign in with `customer@casino.test` / `Password1!`.
+Sign in with `customer@casino.test` / `Password1!` (wallet starts at 1,000 CR).
+
+## Pages
+
+| Route | What it shows |
+|---|---|
+| `/` | Hero, odds ticker, live now, upcoming, games, mobile apps, sign-up band (signed out only) |
+| `/matches?game=` | All live and upcoming matches with game filter chips |
+| `/my-bets` | Wallet balance, +500 top-up, bet history (signed in) |
+| `/login`, `/register`, `/account` | Server-action auth, restyled |
+
+The bet slip floats over every page: bottom sheet on phones, card on desktop.
+
+## How live updates work
+
+- Server components render matches from be (`features/betting/queries.ts`) for the first paint.
+- `LiveMatchesProvider` (root layout) subscribes to `matchUpdated` through `/api/graphql`, then joins the returned
+  Reverb channel with pusher-js. Channels are authorized through the same-origin `/api/graphql/subscriptions/auth`.
+- Pushed matches go into a client store; `useLiveMatches` overlays them on the server-rendered lists, so scores, odds
+  and new or finished matches change in place. A finished match triggers `router.refresh()` because be has settled bets.
+- If the socket can't connect, it polls `matches` every 10 seconds (the "Refreshing every 10s" status on `/matches`).
+- Placing a bet and topping up are Server Actions; be takes the odds from the match at that moment, never from the slip.
+
+Reverb settings (`REVERB_APP_KEY`, `REVERB_HOST`, `REVERB_PORT`, `REVERB_SCHEME`) are read on the server and passed to
+the browser by the root layout, which is prerendered, so set them before `next build`.
 
 ## End-to-end tests (Playwright)
 
@@ -25,26 +54,34 @@ npm run test:e2e:ui               # interactive runner
 npm run test:e2e:report           # open the last HTML report (traces + screenshots on failure)
 ```
 
-Requires Docker MySQL from `casino-be` to be up. The suite starts its own isolated stack, separate from your dev servers:
+Requires Docker MySQL and Redis from `casino-be` to be up. The suite starts its own isolated stack, separate from your
+dev servers:
 
 | Piece | Port | Notes |
 |---|---|---|
 | `casino-be` (`php artisan serve`) | 8100 | database `casino_e2e_web`, reset and seeded every run |
+| Reverb (`php artisan reverb:start`) | 6101 | its own app key, so a dev simulator can't push into test browsers |
 | this app (`next build` + `next start`) | 3100 | production build, so cookies behave like a real deploy |
 
-The E2E backend uses an in-memory cache, which disables the per-IP login throttle so repeated runs don't lock
-themselves out. Rate limiting is covered by `casino-be`'s PHPUnit suite instead.
+The E2E backend uses an in-memory cache, which disables the per-IP throttles so repeated runs don't lock themselves
+out (rate limiting is covered by `casino-be`'s PHPUnit suite). GraphQL subscriptions live in Redis database 3, emptied
+at setup.
 
-Specs live in `e2e/`. `global.setup.ts` resets the database and signs in the demo customer once; specs that need a
-signed-in player reuse that session via `storageState`. Tests that sign out create their own session.
+`global.setup.ts` resets the database, mints a `sim` token and signs in the demo customer once. Tests that bet register
+their own player so wallets never collide; the live-update test creates its own match and drives it with the sim token
+(`createLiveMatch`, `updateMatch` in `e2e/support.ts`).
+
+| Spec | Covers |
+|---|---|
+| `auth.spec.ts` | log in, register, password policy, log out |
+| `session.spec.ts` | header and account per session state, GraphQL proxy |
+| `betting.spec.ts` | landing and filters, bet slip and payouts, placing bets, insufficient balance, top-up, live score and odds pushes, settlement |
 
 ## Layout
 
-- `src/lib/graphql/server.ts`: server-side GraphQL client (forwards bearer token + client IP)
-- `src/app/api/graphql/route.ts`: same-origin proxy for Client Components (adds the httpOnly token)
+- `src/features/betting`: match cards, grid, ticker, bet slip, live provider, actions and queries
+- `src/lib/graphql/server.ts`: server-side GraphQL client (forwards bearer token + client IP; never runs during prefetch)
+- `src/app/api/graphql`: same-origin proxy for Client Components (adds the httpOnly token) and channel auth
 - `src/lib/auth`: session cookie + Data Access Layer (`getCurrentUser`)
-- `src/features/*`: feature modules (auth, lobby)
-- `src/stores` + `src/providers`: per-request Zustand UI store
+- `src/stores` + `src/providers`: per-request Zustand UI store (bet slip)
 - `src/gql`: generated by codegen; do not edit
-
-The lobby's game list (`src/features/lobby/catalog.ts`) is placeholder content until `be` exposes a games query.

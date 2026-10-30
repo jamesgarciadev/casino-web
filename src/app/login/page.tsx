@@ -9,7 +9,7 @@ export default function LoginPage() {
   return (
     <AuthCard
       title="Welcome back"
-      subtitle="Log in to your account to keep playing."
+      subtitle="Log in to place bets and track your slips."
       footer={{ text: "New here?", href: "/register", link: "Create an account" }}
     >
       <LoginForm />

@@ -1,61 +1,144 @@
 @import "tailwindcss";
 
 /*
- * Esports-betting style: dark layered navy surfaces, one neon accent, bold uppercase display type.
- * The product is dark-only by design.
+ * 0dds.bet design system ("Crimson Heat", from casino-design/src/styles.css).
+ * Near-black maroon surfaces, crimson primary, ember-orange accent, green for live. Dark-only by design.
+ * JetBrains Mono for display type, Work Sans for body (loaded with next/font in app/layout.tsx).
  */
 :root {
-  --bg: #0a0c12;
-  --surface: #11151e;
-  --surface-2: #171c28;
-  --surface-3: #202738;
-  --border: #242b3b;
-  --fg: #eef1f7;
-  --muted: #8a93a8;
-  --accent: #b8ff3b;
-  --accent-strong: #a3f01a;
-  --accent-fg: #0a0c12;
-  --hot: #ff6a2b;
-  --danger: #ff4d5e;
+  --radius: 0.5rem;
+  --background: oklch(0.145 0.018 15);
+  --foreground: oklch(0.955 0.008 20);
+  --card: oklch(0.195 0.02 12);
+  --popover: oklch(0.18 0.02 12);
+  --primary: oklch(0.586 0.253 17.6);
+  --primary-foreground: oklch(0.985 0.01 20);
+  --secondary: oklch(0.25 0.025 12);
+  --muted: oklch(0.235 0.02 12);
+  --muted-foreground: oklch(0.68 0.02 20);
+  --accent: oklch(0.75 0.183 55.9);
+  --accent-foreground: oklch(0.16 0.02 15);
+  --destructive: oklch(0.577 0.245 27.325);
+  --live: oklch(0.77 0.19 152);
+  --border: oklch(1 0 0 / 9%);
+  --input: oklch(1 0 0 / 12%);
+  --ring: oklch(0.586 0.253 17.6);
   color-scheme: dark;
 }
 
 @theme inline {
-  --color-bg: var(--bg);
-  --color-surface: var(--surface);
-  --color-surface-2: var(--surface-2);
-  --color-surface-3: var(--surface-3);
-  --color-border: var(--border);
-  --color-fg: var(--fg);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-popover: var(--popover);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
   --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
   --color-accent: var(--accent);
-  --color-accent-strong: var(--accent-strong);
-  --color-accent-fg: var(--accent-fg);
-  --color-hot: var(--hot);
-  --color-danger: var(--danger);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-live: var(--live);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --font-display: var(--font-jetbrains-mono), ui-monospace, monospace;
+  --font-sans: var(--font-work-sans), ui-sans-serif, system-ui, sans-serif;
 }
 
-body {
-  background: var(--bg);
-  color: var(--fg);
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-display);
+    letter-spacing: -0.01em;
+  }
 }
 
-@layer components {
-  .btn {
-    @apply inline-flex h-10 items-center justify-center gap-2 rounded-lg px-4 text-sm font-bold uppercase tracking-wide transition-colors disabled:cursor-not-allowed disabled:opacity-60;
+/* Crimson glow around featured and live panels. */
+@utility glow-panel {
+  box-shadow:
+    0 0 0 1px color-mix(in oklab, var(--primary) 25%, transparent),
+    0 20px 60px -20px color-mix(in oklab, var(--primary) 45%, transparent);
+}
+
+@utility text-glow {
+  text-shadow: 0 0 24px color-mix(in oklab, var(--primary) 55%, transparent);
+}
+
+/* Faint scanline grid behind the hero and section headers. */
+@utility arena-grid {
+  background-image:
+    linear-gradient(color-mix(in oklab, var(--primary) 7%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in oklab, var(--primary) 7%, transparent) 1px, transparent 1px);
+  background-size: 44px 44px;
+}
+
+@keyframes ticker-scroll {
+  from {
+    transform: translateX(0);
   }
-  .btn-accent {
-    @apply bg-accent text-accent-fg hover:bg-accent-strong;
+  to {
+    transform: translateX(-50%);
   }
-  .btn-ghost {
-    @apply bg-surface-3 text-fg hover:bg-[#2a3347];
+}
+
+@utility ticker-track {
+  animation: ticker-scroll 38s linear infinite;
+
+  &:hover {
+    animation-play-state: paused;
   }
-  .panel {
-    @apply rounded-2xl border border-border bg-surface;
+}
+
+@keyframes live-pulse {
+  0%,
+  100% {
+    opacity: 1;
   }
-  .display {
-    @apply font-black uppercase tracking-tight;
+  50% {
+    opacity: 0.35;
+  }
+}
+
+@utility live-dot {
+  animation: live-pulse 1.4s ease-in-out infinite;
+}
+
+/* Brief highlight when a live score or price changes. */
+@keyframes flash {
+  from {
+    background-color: color-mix(in oklab, var(--accent) 30%, transparent);
+  }
+  to {
+    background-color: transparent;
+  }
+}
+
+@utility flash {
+  animation: flash 0.9s ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ticker-track,
+  .live-dot,
+  .flash {
+    animation: none;
   }
 }

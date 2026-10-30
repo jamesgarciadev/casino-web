@@ -45,7 +45,8 @@ test.describe("log in", () => {
   test("invalid input is caught in the browser before anything is sent", async ({ page }) => {
     await page.goto("/login");
     const posts: string[] = [];
-    page.on("request", (request) => request.method() === "POST" && posts.push(request.url()));
+    // Form submissions are Server Action POSTs; the live-updates subscription also POSTs, so only count actions.
+    page.on("request", (request) => request.method() === "POST" && request.headers()["next-action"] && posts.push(request.url()));
 
     await page.getByLabel("Email").fill("not-an-email");
     await page.getByRole("button", { name: "Log in" }).click();
@@ -108,7 +109,8 @@ test.describe("register", () => {
     test(`password policy: "${password}" is rejected before submitting`, async ({ page }) => {
       await page.goto("/register");
       const posts: string[] = [];
-      page.on("request", (request) => request.method() === "POST" && posts.push(request.url()));
+      // Form submissions are Server Action POSTs; the live-updates subscription also POSTs, so only count actions.
+    page.on("request", (request) => request.method() === "POST" && request.headers()["next-action"] && posts.push(request.url()));
 
       await page.getByLabel("Name").fill("Jane");
       await page.getByLabel("Email").fill(newAccount().email);

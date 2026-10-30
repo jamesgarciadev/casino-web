@@ -1,6 +1,6 @@
 import { defineConfig, devices } from "@playwright/test";
 
-import { API_URL, APP_PORT, BACKEND_DIR, BACKEND_PORT, backendEnv } from "./e2e/stack";
+import { APP_PORT, appEnv, BACKEND_DIR, BACKEND_PORT, backendEnv, REVERB_PORT } from "./e2e/stack";
 
 const baseURL = `http://localhost:${APP_PORT}`;
 const isCI = !!process.env.CI;
@@ -32,10 +32,19 @@ export default defineConfig({
       timeout: 60_000,
     },
     {
+      // Websockets for live match updates, with the E2E app key.
+      command: "php artisan reverb:start",
+      cwd: BACKEND_DIR,
+      port: REVERB_PORT,
+      env: backendEnv,
+      reuseExistingServer: !isCI,
+      timeout: 60_000,
+    },
+    {
       // Production build: same cookies, caching and rendering as a real deploy.
       command: `npm run build && npx next start --port ${APP_PORT}`,
       url: baseURL,
-      env: { CASINO_API_URL: API_URL },
+      env: appEnv,
       reuseExistingServer: !isCI,
       timeout: 300_000,
     },

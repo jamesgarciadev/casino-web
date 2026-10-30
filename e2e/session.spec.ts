@@ -4,7 +4,7 @@ import { CUSTOMER_STATE, SESSION_COOKIE } from "./stack";
 import { DEMO_CUSTOMER } from "./support";
 
 test.describe("signed out", () => {
-  test("lobby shows log in and sign up", async ({ page }) => {
+  test("landing page shows log in and sign up", async ({ page }) => {
     await page.goto("/");
 
     await expect(page.getByRole("banner").getByRole("link", { name: "Log in" })).toBeVisible();

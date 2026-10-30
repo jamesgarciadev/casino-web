@@ -3,6 +3,7 @@ import "server-only";
 import type { TypedDocumentNode } from "@graphql-typed-document-node/core";
 import { print } from "graphql";
 import { headers } from "next/headers";
+import { connection } from "next/server";
 
 import { getSessionToken } from "@/lib/auth/session";
 import { env } from "@/lib/env";
@@ -11,6 +12,8 @@ import type { GraphQLErrorShape } from "@/lib/graphql/errors";
 export type GraphQLResult<TData> = {
   data: TData | null;
   errors: GraphQLErrorShape[];
+  /** Carries `lighthouse_subscriptions.channel` for subscription operations. */
+  extensions?: Record<string, unknown>;
 };
 
 type RequestOptions = {
@@ -37,6 +40,8 @@ export async function executeRaw<TData = unknown>(
   body: { query: string; variables?: unknown; operationName?: string | null },
   token: string | null,
 ): Promise<GraphQLResult<TData>> {
+  // be data is always live (scores, odds, balances), so never render it ahead of a request, e.g. while prefetching.
+  await connection();
   const requestHeaders = await headers();
   const forwardedFor = requestHeaders.get("x-forwarded-for");
 
@@ -57,7 +62,11 @@ export async function executeRaw<TData = unknown>(
     return { data: null, errors: [{ message: `API request failed with status ${response.status}.` }] };
   }
 
-  const json = (await response.json()) as { data?: TData | null; errors?: GraphQLErrorShape[] };
+  const json = (await response.json()) as {
+    data?: TData | null;
+    errors?: GraphQLErrorShape[];
+    extensions?: Record<string, unknown>;
+  };
 
-  return { data: json.data ?? null, errors: json.errors ?? [] };
+  return { data: json.data ?? null, errors: json.errors ?? [], ...(json.extensions ? { extensions: json.extensions } : {}) };
 }

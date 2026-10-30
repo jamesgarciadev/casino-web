@@ -9,7 +9,7 @@ export default function RegisterPage() {
   return (
     <AuthCard
       title="Create account"
-      subtitle="It takes less than a minute."
+      subtitle="Your wallet starts with 1,000 play-money credits."
       footer={{ text: "Already have an account?", href: "/login", link: "Log in" }}
     >
       <RegisterForm />

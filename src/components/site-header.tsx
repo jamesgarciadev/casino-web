@@ -1,22 +1,23 @@
 import { Suspense } from "react";
 
-import { CategoryNav } from "@/components/category-nav";
 import { HeaderAccount } from "@/components/header-account";
 import { Logo } from "@/components/logo";
-import { MobileNavToggle } from "@/components/mobile-nav-toggle";
+import { NavLink } from "@/components/nav-link";
 
 export function SiteHeader() {
   return (
-    <header className="sticky top-0 z-40 border-b border-border bg-surface/95 backdrop-blur">
-      <div className="mx-auto flex h-16 max-w-[1440px] items-center gap-4 px-4">
-        <MobileNavToggle />
+    <header className="sticky top-0 z-40 border-b border-border/70 bg-background/85 backdrop-blur-md">
+      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-2 px-4 sm:gap-4 sm:px-6">
         <Logo />
 
-        <CategoryNav variant="header" />
+        <nav aria-label="Main" className="flex items-center gap-1 font-display text-xs font-bold uppercase tracking-wider sm:gap-2 sm:text-sm">
+          <NavLink href="/matches">Matches</NavLink>
+          <NavLink href="/my-bets">My bets</NavLink>
+        </nav>
 
-        <div className="ml-auto flex items-center gap-2">
+        <div className="flex items-center gap-2">
           {/* Reads the session cookie, so it streams in behind the static header shell. */}
-          <Suspense fallback={<div className="h-10 w-40 animate-pulse rounded-lg bg-surface-3" />}>
+          <Suspense fallback={<span className="h-8 w-24 animate-pulse rounded-md bg-secondary" />}>
             <HeaderAccount />
           </Suspense>
         </div>

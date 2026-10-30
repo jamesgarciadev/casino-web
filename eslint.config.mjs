@@ -14,6 +14,9 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     // GraphQL Codegen output.
     "src/gql/**",
+    // Playwright output (the HTML report bundles a trace viewer when a test fails).
+    "playwright-report/**",
+    "test-results/**",
   ]),
 ]);
 

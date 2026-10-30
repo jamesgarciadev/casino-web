@@ -18,12 +18,26 @@ type Documents = {
     "\n  mutation Login($input: LoginInput!) {\n    login(input: $input) {\n      token\n    }\n  }\n": typeof types.LoginDocument,
     "\n  mutation Register($input: RegisterInput!) {\n    register(input: $input) {\n      token\n    }\n  }\n": typeof types.RegisterDocument,
     "\n  mutation Logout {\n    logout\n  }\n": typeof types.LogoutDocument,
+    "\n  fragment MatchFields on Match {\n    id\n    game\n    gameName\n    tournament\n    teamA\n    teamB\n    teamAAcronym\n    teamBAcronym\n    scoreA\n    scoreB\n    oddsA\n    oddsB\n    startsAt\n    state\n    winner\n    streamUrl\n  }\n": typeof types.MatchFieldsFragmentDoc,
+    "\n  query Matches($state: MatchState, $game: String) {\n    matches(state: $state, game: $game) {\n      ...MatchFields\n    }\n  }\n": typeof types.MatchesDocument,
+    "\n  subscription MatchUpdated {\n    matchUpdated {\n      ...MatchFields\n    }\n  }\n": typeof types.MatchUpdatedDocument,
+    "\n  query Wallet {\n    wallet {\n      balance\n    }\n  }\n": typeof types.WalletDocument,
+    "\n  query MyBets {\n    myBets {\n      id\n      side\n      stake\n      odds\n      payout\n      status\n      placedAt\n      match {\n        ...MatchFields\n      }\n    }\n  }\n": typeof types.MyBetsDocument,
+    "\n  mutation PlaceBet($input: PlaceBetInput!) {\n    placeBet(input: $input) {\n      bet {\n        id\n        payout\n      }\n      wallet {\n        balance\n      }\n    }\n  }\n": typeof types.PlaceBetDocument,
+    "\n  mutation TopUpWallet {\n    topUpWallet {\n      balance\n    }\n  }\n": typeof types.TopUpWalletDocument,
 };
 const documents: Documents = {
     "\n  query Me {\n    me {\n      id\n      name\n      email\n      roles\n      createdAt\n    }\n  }\n": types.MeDocument,
     "\n  mutation Login($input: LoginInput!) {\n    login(input: $input) {\n      token\n    }\n  }\n": types.LoginDocument,
     "\n  mutation Register($input: RegisterInput!) {\n    register(input: $input) {\n      token\n    }\n  }\n": types.RegisterDocument,
     "\n  mutation Logout {\n    logout\n  }\n": types.LogoutDocument,
+    "\n  fragment MatchFields on Match {\n    id\n    game\n    gameName\n    tournament\n    teamA\n    teamB\n    teamAAcronym\n    teamBAcronym\n    scoreA\n    scoreB\n    oddsA\n    oddsB\n    startsAt\n    state\n    winner\n    streamUrl\n  }\n": types.MatchFieldsFragmentDoc,
+    "\n  query Matches($state: MatchState, $game: String) {\n    matches(state: $state, game: $game) {\n      ...MatchFields\n    }\n  }\n": types.MatchesDocument,
+    "\n  subscription MatchUpdated {\n    matchUpdated {\n      ...MatchFields\n    }\n  }\n": types.MatchUpdatedDocument,
+    "\n  query Wallet {\n    wallet {\n      balance\n    }\n  }\n": types.WalletDocument,
+    "\n  query MyBets {\n    myBets {\n      id\n      side\n      stake\n      odds\n      payout\n      status\n      placedAt\n      match {\n        ...MatchFields\n      }\n    }\n  }\n": types.MyBetsDocument,
+    "\n  mutation PlaceBet($input: PlaceBetInput!) {\n    placeBet(input: $input) {\n      bet {\n        id\n        payout\n      }\n      wallet {\n        balance\n      }\n    }\n  }\n": types.PlaceBetDocument,
+    "\n  mutation TopUpWallet {\n    topUpWallet {\n      balance\n    }\n  }\n": types.TopUpWalletDocument,
 };
 
 /**
@@ -56,6 +70,34 @@ export function graphql(source: "\n  mutation Register($input: RegisterInput!) {
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n  mutation Logout {\n    logout\n  }\n"): (typeof documents)["\n  mutation Logout {\n    logout\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  fragment MatchFields on Match {\n    id\n    game\n    gameName\n    tournament\n    teamA\n    teamB\n    teamAAcronym\n    teamBAcronym\n    scoreA\n    scoreB\n    oddsA\n    oddsB\n    startsAt\n    state\n    winner\n    streamUrl\n  }\n"): (typeof documents)["\n  fragment MatchFields on Match {\n    id\n    game\n    gameName\n    tournament\n    teamA\n    teamB\n    teamAAcronym\n    teamBAcronym\n    scoreA\n    scoreB\n    oddsA\n    oddsB\n    startsAt\n    state\n    winner\n    streamUrl\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query Matches($state: MatchState, $game: String) {\n    matches(state: $state, game: $game) {\n      ...MatchFields\n    }\n  }\n"): (typeof documents)["\n  query Matches($state: MatchState, $game: String) {\n    matches(state: $state, game: $game) {\n      ...MatchFields\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  subscription MatchUpdated {\n    matchUpdated {\n      ...MatchFields\n    }\n  }\n"): (typeof documents)["\n  subscription MatchUpdated {\n    matchUpdated {\n      ...MatchFields\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query Wallet {\n    wallet {\n      balance\n    }\n  }\n"): (typeof documents)["\n  query Wallet {\n    wallet {\n      balance\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query MyBets {\n    myBets {\n      id\n      side\n      stake\n      odds\n      payout\n      status\n      placedAt\n      match {\n        ...MatchFields\n      }\n    }\n  }\n"): (typeof documents)["\n  query MyBets {\n    myBets {\n      id\n      side\n      stake\n      odds\n      payout\n      status\n      placedAt\n      match {\n        ...MatchFields\n      }\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation PlaceBet($input: PlaceBetInput!) {\n    placeBet(input: $input) {\n      bet {\n        id\n        payout\n      }\n      wallet {\n        balance\n      }\n    }\n  }\n"): (typeof documents)["\n  mutation PlaceBet($input: PlaceBetInput!) {\n    placeBet(input: $input) {\n      bet {\n        id\n        payout\n      }\n      wallet {\n        balance\n      }\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation TopUpWallet {\n    topUpWallet {\n      balance\n    }\n  }\n"): (typeof documents)["\n  mutation TopUpWallet {\n    topUpWallet {\n      balance\n    }\n  }\n"];
 
 export function graphql(source: string) {
   return (documents as any)[source] ?? {};
