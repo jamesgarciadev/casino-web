@@ -57,9 +57,31 @@ test.describe("bet slip", () => {
 
     await expect(slip(page).getByRole("link", { name: "Log in to place this bet" })).toHaveAttribute("href", "/login");
 
-    // Tapping the same price again removes it.
+    // Tapping the same price again removes it and leaves the empty slip.
     await page.getByRole("button", { name: "Sentinels to win at 2.10" }).click();
+    await expect(slip(page)).toContainText("Your bet slip is empty");
+  });
+
+  test("the floating button opens and closes the slip, empty or not", async ({ page }) => {
+    await page.goto("/matches");
     await expect(slip(page)).toHaveCount(0);
+
+    await page.getByRole("button", { name: "Open bet slip" }).click();
+    await expect(slip(page)).toContainText("Your bet slip is empty");
+
+    await slip(page).getByRole("button", { name: "Close bet slip" }).click();
+    await expect(slip(page)).toHaveCount(0);
+
+    // A pick opens the slip; closing it keeps the pick, and the button shows the count.
+    await page.getByRole("button", { name: "Sentinels to win at 2.10" }).click();
+    await page.keyboard.press("Escape");
+    await expect(slip(page)).toHaveCount(0);
+
+    await page.getByRole("button", { name: "Open bet slip (1 selection)" }).click();
+    await expect(slip(page)).toContainText("Sentinels to win");
+
+    await slip(page).getByRole("button", { name: "Remove selection" }).click();
+    await expect(slip(page)).toContainText("Your bet slip is empty");
   });
 
   test("placing a bet debits the wallet and lists it under My bets", async ({ page }) => {
