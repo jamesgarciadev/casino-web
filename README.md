@@ -1,25 +1,50 @@
 # casino-web
 
-**0dds.bet**, the customer app: live esports odds, bet slips and a play-money wallet. Next.js 16 (App Router,
-Cache Components), Tailwind 4, Zustand, Zod, urql, pusher-js. Talks only to `casino-be` over GraphQL.
-See [ARCHITECTURE.md](ARCHITECTURE.md).
+**0dds.bet**, the customer app: live esports odds, bet slips and a play-money wallet. Talks only to `casino-be` over
+GraphQL. See [ARCHITECTURE.md](ARCHITECTURE.md).
 
 The design comes from `../casino-design` (the "Crimson Heat" Lovable export): tokens and utilities live in
 `src/app/globals.css`, button variants in `src/components/ui/button.tsx`.
 
-## Run locally
+## Tech stack
 
-Requires `casino-be` running on http://localhost:8000 with `php artisan reverb:start` for live updates, and the repos
-cloned side by side. For matches that actually move, also run `casino-sim` (`php sim sim:run --speed=20`).
+| Layer | What we use |
+|---|---|
+| Framework | Next.js 16.4 (App Router, Cache Components), React 19.3, TypeScript 5 |
+| Styling | Tailwind CSS 4, class-variance-authority, clsx and tailwind-merge, lucide-react icons, sonner toasts |
+| State and data | Zustand (bet slip and live match stores), urql (GraphQL client in the browser), GraphQL Code Generator (types and Zod base schemas from casino-be's schema) |
+| Forms and validation | react-hook-form and Zod 4 |
+| Realtime | pusher-js, connected to Laravel Reverb for GraphQL subscriptions |
+| Tests and lint | Playwright 1.64 (end to end), ESLint 9 |
+
+## Prerequisites
+
+- Node.js 20.9 or newer (Next 16's minimum) and npm
+- `casino-be` running on http://localhost:8000 with Reverb on :6001, and the repos cloned side by side
+  (`npm run codegen` reads `../casino-be/graphql/schema.public.graphql`)
+- Optional: `casino-sim`, so matches actually move
+
+Ports: **3000** dev server. The end-to-end suite uses its own 3100 (app), 8100 (be) and 6101 (Reverb).
+
+## Start it up
 
 ```sh
-npm install
-cp .env.example .env.local   # set REVERB_APP_KEY to casino-be's value
-npm run codegen   # types + Zod base schemas from ../casino-be/graphql/schema.public.graphql
-npm run dev       # http://localhost:3000
+# 1. In casino-be (see its README), one command per terminal:
+#      docker compose up -d --wait
+#      php artisan serve
+#      php artisan reverb:start
+# 2. Optional, in casino-sim: php sim sim:run --speed=20
+
+npm install                  # 3.
+cp .env.example .env.local   # 4. then set REVERB_APP_KEY to the value in casino-be's .env
+npm run codegen              # 5. types + Zod base schemas from casino-be's schema
+npm run dev                  # 6. http://localhost:3000
 ```
 
-Sign in with `customer@casino.test` / `Password1!` (wallet starts at 1,000 CR).
+It is working when `/matches` lists live matches and shows **Live updates on**. Sign in with
+`customer@casino.test` / `Password1!` (the wallet starts at 1,000 CR).
+
+Other scripts: `npm run lint`, `npm run typecheck`, `npm run build` then `npm start` for a production build.
 
 ## Pages
 
