@@ -30,7 +30,8 @@ reviews:
     - path: "src/lib/**"
       instructions: |
         The session token stays in the httpOnly cookie and on the server. The browser only calls the same-origin
-        /api/graphql proxy. Mutations are Server Actions and validate input with Zod.
+        /api/graphql proxy for interactive queries and mutations. Token-issuing mutations (login, register,
+        adminLogin) only run from Server Actions, which the proxy enforces. Server Action input is validated with Zod.
     - path: "src/stores/**"
       instructions: |
         One Zustand store per provider mount, never a module-level singleton shared between requests on the server.

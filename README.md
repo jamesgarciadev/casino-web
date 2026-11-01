@@ -29,7 +29,10 @@ Ports: **3000** dev server. The end-to-end suite uses its own 3100 (app), 8100 (
 ## Start it up
 
 ```sh
-# 1. In casino-be (see its README): docker compose up -d --wait, php artisan serve, php artisan reverb:start
+# 1. In casino-be (see its README), one command per terminal:
+#      docker compose up -d --wait
+#      php artisan serve
+#      php artisan reverb:start
 # 2. Optional, in casino-sim: php sim sim:run --speed=20
 
 npm install                  # 3.
