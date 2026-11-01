@@ -9,25 +9,24 @@ import { toast } from "sonner";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
 import { useUiStore } from "@/providers/ui-store-provider";
-import type { SlipSelection } from "@/stores/ui-store";
 
 import { placeBetAction } from "./actions";
-import { useKnownMatchMap } from "./live-matches";
-import { formatCredits, formatOdds, oddsFor, potentialPayout, teamName, totalOdds, type Match } from "./match";
+import { useKnownMarketMap, useKnownMatchMap } from "./live-matches";
+import { formatCredits, formatOdds, potentialPayout, totalOdds } from "./match";
+import { pickInput, resolvePick, type ResolvedPick } from "./picks";
 import { SlipBets, usePrefetchOpenBets } from "./slip-bets";
 
 const CHIPS = [50, 100, 250];
 
-type Pick = SlipSelection & { match: Match };
-
-/** The slip's picks with their newest match data; picks for matches the client hasn't seen are left out. */
-function usePicks(): Pick[] {
+/** The slip's picks with their newest odds; picks for matches the client hasn't seen are left out. */
+function usePicks(): ResolvedPick[] {
   const selections = useUiStore((s) => s.selections);
   const matches = useKnownMatchMap();
+  const markets = useKnownMarketMap();
 
   return selections.flatMap((selection) => {
     const match = matches[selection.matchId];
-    return match ? [{ ...selection, match }] : [];
+    return match ? [resolvePick(selection, match, markets[selection.matchId])] : [];
   });
 }
 
@@ -181,7 +180,7 @@ function SlipMode({ count }: { count: number }) {
   );
 }
 
-function SlipPicks({ picks, signedIn }: { picks: Pick[]; signedIn: boolean }) {
+function SlipPicks({ picks, signedIn }: { picks: ResolvedPick[]; signedIn: boolean }) {
   const stake = useUiStore((s) => s.stake);
   const setStake = useUiStore((s) => s.setStake);
   const removeSelection = useUiStore((s) => s.removeSelection);
@@ -192,13 +191,14 @@ function SlipPicks({ picks, signedIn }: { picks: Pick[]; signedIn: boolean }) {
   const [placing, startPlacing] = useTransition();
 
   const combo = picks.length > 1;
-  const odds = totalOdds(picks.map((pick) => oddsFor(pick.match, pick.side)));
+  const odds = totalOdds(picks.map((pick) => pick.odds));
   const payout = potentialPayout(stake, odds);
-  const closed = picks.filter((pick) => pick.match.state === "FINISHED");
+  const closed = picks.filter((pick) => pick.blocked === "closed");
+  const suspended = picks.filter((pick) => pick.blocked === "suspended");
 
   const place = () =>
     startPlacing(async () => {
-      const result = await placeBetAction({ selections: picks.map(({ matchId, side }) => ({ matchId, side })), stake });
+      const result = await placeBetAction({ selections: picks.map(pickInput), stake });
 
       if (!result.ok) {
         toast.error(result.message);
@@ -217,24 +217,23 @@ function SlipPicks({ picks, signedIn }: { picks: Pick[]; signedIn: boolean }) {
       <SlipMode count={picks.length} />
 
       <ul className="-mx-1 max-h-[28dvh] min-h-0 space-y-2 overflow-y-auto px-1 md:max-h-64">
-        {picks.map(({ matchId, side, match }) => {
-          const team = teamName(match, side);
+        {picks.map(({ matchId, label, odds: pickOdds, match, blocked }) => {
           return (
-            <li key={matchId} aria-label={`${team} to win`} className="flex items-start gap-2 rounded-lg border border-border bg-card/60 p-3">
+            <li key={matchId} aria-label={label} className="flex items-start gap-2 rounded-lg border border-border bg-card/60 p-3">
               <div className="min-w-0 flex-1">
                 <p className="truncate font-display text-sm font-bold">
                   {match.teamA} vs {match.teamB}
                 </p>
                 <p className="mt-0.5 text-xs text-muted-foreground">
-                  {team} to win · <span className="font-display font-bold text-accent">@ {formatOdds(oddsFor(match, side))}</span>
-                  {match.state === "LIVE" && <span className="ml-1 text-live">· in play</span>}
-                  {match.state === "FINISHED" && <span className="ml-1 text-destructive">· closed</span>}
+                  {label} · <span className="font-display font-bold text-accent">@ {formatOdds(pickOdds)}</span>
+                  {match.state === "LIVE" && !blocked && <span className="ml-1 text-live">· in play</span>}
+                  {blocked && <span className="ml-1 text-destructive">· {blocked}</span>}
                 </p>
               </div>
               <button
                 type="button"
                 onClick={() => removeSelection(matchId)}
-                aria-label={`Remove ${team} to win`}
+                aria-label={`Remove ${label}`}
                 className="cursor-pointer rounded p-1 text-muted-foreground hover:bg-secondary hover:text-foreground"
               >
                 <Trash2 className="size-4" />
@@ -288,7 +287,11 @@ function SlipPicks({ picks, signedIn }: { picks: Pick[]; signedIn: boolean }) {
 
       {closed.length > 0 ? (
         <p className="mt-3 rounded-md bg-secondary/60 py-3 text-center text-sm text-muted-foreground">
-          {combo ? "Remove finished matches to place this combo." : "Betting is closed for this match."}
+          {combo ? "Remove closed picks to place this combo." : "Betting is closed for this pick."}
+        </p>
+      ) : suspended.length > 0 ? (
+        <p className="mt-3 rounded-md bg-secondary/60 py-3 text-center text-sm text-muted-foreground">
+          {suspended.length === 1 && !combo ? "This market is suspended for now." : "A market on this slip is suspended for now."}
         </p>
       ) : signedIn ? (
         <Button className="mt-3 w-full shrink-0" size="lg" disabled={placing || stake <= 0} onClick={place}>

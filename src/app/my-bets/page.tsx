@@ -4,7 +4,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 
 import { buttonVariants } from "@/components/ui/button";
-import { BET_STATUS_STYLES, betLabel, pickTeam, statusLabel } from "@/features/betting/bet";
+import { BET_STATUS_STYLES, betLabel, pickName, statusLabel } from "@/features/betting/bet";
 import { formatCredits, formatOdds, gameLabel } from "@/features/betting/match";
 import { getMyBets, getWalletBalance } from "@/features/betting/queries";
 import { TopUpButton } from "@/features/betting/top-up-button";
@@ -93,7 +93,7 @@ async function WalletAndBets() {
                           )}
                         </p>
                         <p className="mt-0.5 text-xs text-muted-foreground">
-                          {pickTeam(selection)} to win · @ {formatOdds(selection.odds)}
+                          {pickName(selection)} · @ {formatOdds(selection.odds)}
                         </p>
                       </div>
                     ))}

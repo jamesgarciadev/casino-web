@@ -3,7 +3,19 @@ import { createStore } from "zustand/vanilla";
 import type { Side } from "@/gql/graphql";
 
 /** Client UI state only. Server data (matches, wallet, bets) comes from be, never from here. */
-export type SlipSelection = { matchId: string; side: Side };
+
+/**
+ * One pick: a side of the match (its winner market, which the match cards offer) or an outcome of another market
+ * (the match page). Market picks keep their label and the odds when picked, shown until live odds arrive.
+ */
+export type SlipSelection =
+  | { matchId: string; side: Side; outcomeId?: undefined }
+  | { matchId: string; outcomeId: string; label: string; odds: number; side?: undefined };
+
+/** Two picks back the same thing when they name the same side or the same outcome. */
+export function samePick(a: SlipSelection, b: SlipSelection): boolean {
+  return a.matchId === b.matchId && a.side === b.side && a.outcomeId === b.outcomeId;
+}
 
 /** The slip panel's tabs: the picks being built, or a quick look at the player's bets. */
 export type SlipTab = "slip" | "bets";
@@ -36,8 +48,9 @@ export type UiState = {
 
 export type UiActions = {
   /**
-   * Picking the same odds again removes it, as in the design. The other side of a match already on the slip
-   * replaces that pick, since a combo can't back one match twice. Any other pick is added.
+   * Picking the same odds again removes it, as in the design. Any other odds of a match already on the slip (the
+   * other side, or another market) replace that pick, since a combo can't back one match twice. Any other pick is
+   * added.
    */
   toggleSelection: (selection: SlipSelection) => void;
   removeSelection: (matchId: string) => void;
@@ -74,7 +87,7 @@ export function createUiStore(initialState: UiState = defaultUiState) {
       set((state) => {
         const existing = state.selections.find((s) => s.matchId === selection.matchId);
 
-        if (existing?.side === selection.side) {
+        if (existing && samePick(existing, selection)) {
           return { selections: state.selections.filter((s) => s !== existing) };
         }
 

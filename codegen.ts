@@ -38,10 +38,12 @@ const config: CodegenConfig = {
       config: { scalars, enumsAsTypes: true },
       hooks: {
         // The zodv4 generator types every field's input as `T[K] | undefined`, which makes nested input lists
-        // (PlaceComboBetInput.selections) fail to typecheck. Inputs are only checked as unknown anyway.
+        // (PlaceComboBetInput.selections) fail to typecheck. Inputs are only checked as unknown anyway. Optional
+        // keys also lose their `?` (`-?`), or zod infers optional nested fields (outcomeId) as unknown; T[K] still
+        // includes undefined for them.
         beforeOneFileWrite: [
           (_path: string, content: string) =>
-            content.replace("z.ZodType<T[K], T[K] | undefined>", "z.ZodType<T[K], unknown>"),
+            content.replace("[K in keyof T]: z.ZodType<T[K], T[K] | undefined>", "[K in keyof T]-?: z.ZodType<T[K], unknown>"),
         ],
       },
     },

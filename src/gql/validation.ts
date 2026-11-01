@@ -60,21 +60,26 @@ export type Bet = {
   type: BetType;
 };
 
-/** One pick of a bet. */
+/** One pick of a bet: an outcome of one of the match's markets. */
 export type BetSelection = {
   __typename?: 'BetSelection';
   id: Scalars['ID']['output'];
+  market: Market;
   match: Match;
   /** Odds for this pick when the bet was placed. */
   odds: Scalars['Float']['output'];
-  side: Side;
-  /** PENDING until its match finishes. */
+  outcome: MarketOutcome;
+  /** @deprecated Only set for WINNER picks. Use `market` and `outcome`. */
+  side?: Maybe<Side>;
+  /** PENDING until its market settles. */
   status: BetStatus;
 };
 
+/** Give either `side` (the WINNER market) or `outcomeId`. */
 export type BetSelectionInput = {
   matchId: Scalars['ID']['input'];
-  side: Side;
+  outcomeId?: InputMaybe<Scalars['ID']['input']>;
+  side?: InputMaybe<Side>;
 };
 
 /** PENDING until the match finishes, then WON or LOST; CASHED_OUT if a single was withdrawn first. */
@@ -166,15 +171,96 @@ export type LoginInput = {
   password: Scalars['String']['input'];
 };
 
+/** One map of a series. */
+export type MapScore = {
+  __typename?: 'MapScore';
+  name: Scalars['String']['output'];
+  /** 1 for the first map. */
+  number: Scalars['Int']['output'];
+  /** Rounds (or points) won on this map. */
+  scoreA: Scalars['Int']['output'];
+  scoreB: Scalars['Int']['output'];
+  /** Set once the map is over. */
+  winner?: Maybe<Side>;
+};
+
+/**
+ * Something to bet on in a match. Clients build the title from `type` plus `map`, `half`, `round`, `line` and `side`,
+ * e.g. MAP_TOTAL_ROUNDS, map 3, line 22.5 is "Map 3 - Total rounds" with outcomes OVER and UNDER 22.5.
+ */
+export type Market = {
+  __typename?: 'Market';
+  /** 1 or 2. */
+  half?: Maybe<Scalars['Int']['output']>;
+  id: Scalars['ID']['output'];
+  /** The feed's stable id for this market within the match. */
+  key: Scalars['String']['output'];
+  /** Handicap (team A's view; team B's is the negative) or total. Always ends in .5. */
+  line?: Maybe<Scalars['Float']['output']>;
+  map?: Maybe<Scalars['Int']['output']>;
+  outcomes: Array<MarketOutcome>;
+  /** The round a round market is about; for RACE_TO_ROUNDS, the number of rounds to reach first. */
+  round?: Maybe<Scalars['Int']['output']>;
+  /** The team a TEAM_TOTAL_ROUNDS market is about. */
+  side?: Maybe<Side>;
+  status: MarketStatus;
+  type: MarketType;
+};
+
+export type MarketOutcome = {
+  __typename?: 'MarketOutcome';
+  id: Scalars['ID']['output'];
+  /** a, b, draw, over, under, odd, even, yes, no, or a map score such as `2:1` (team A's maps first). */
+  key: Scalars['String']['output'];
+  /** Current decimal odds. */
+  odds: Scalars['Float']['output'];
+  result?: Maybe<OutcomeResult>;
+};
+
+/** OPEN takes bets; SUSPENDED shows odds but takes no bets; SETTLED has its result. */
+export type MarketStatus =
+  | 'OPEN'
+  | 'SETTLED'
+  | 'SUSPENDED';
+
+/** What a market is about. Clients build its title from the type plus map, half, round, line and side. */
+export type MarketType =
+  | 'ACE'
+  | 'BOMB_PLANTED'
+  | 'CORRECT_MAP_SCORE'
+  | 'HALF_1X2'
+  | 'HALF_HANDICAP'
+  | 'MAP_1X2'
+  | 'MAP_HANDICAP'
+  | 'MAP_ROUNDS_HANDICAP'
+  | 'MAP_TOTAL_ROUNDS'
+  | 'MAP_WINNER'
+  | 'ODD_EVEN_MAPS'
+  | 'PISTOL_ROUND'
+  | 'RACE_TO_ROUNDS'
+  | 'ROUNDS_HANDICAP'
+  | 'ROUND_WINNER'
+  | 'TEAM_TOTAL_ROUNDS'
+  | 'TOTAL_MAPS'
+  | 'TOTAL_ROUNDS'
+  | 'WINNER';
+
 export type Match = {
   __typename?: 'Match';
+  /** Best of how many maps (1 for a single map). */
+  bestOf: Scalars['Int']['output'];
   /** PandaScore videogame slug, e.g. `cs-go`. */
   game: Scalars['String']['output'];
   gameName: Scalars['String']['output'];
   id: Scalars['ID']['output'];
-  /** Decimal odds for team A. Simulated, not market odds. */
+  /** Maps played so far, in order. While the match is live the last one is in play. */
+  maps: Array<MapScore>;
+  /** Everything to bet on in this match, in display order. Every match has a WINNER market. */
+  markets: Array<Market>;
+  /** Decimal odds for team A to win the match: the WINNER market's odds. Simulated, not market odds. */
   oddsA: Scalars['Float']['output'];
   oddsB: Scalars['Float']['output'];
+  /** Maps won by team A (rounds or points for older matches without `maps`). */
   scoreA: Scalars['Int']['output'];
   scoreB: Scalars['Int']['output'];
   startsAt: Scalars['DateTime']['output'];
@@ -186,6 +272,11 @@ export type Match = {
   teamBAcronym?: Maybe<Scalars['String']['output']>;
   tournament: Scalars['String']['output'];
   winner?: Maybe<Side>;
+};
+
+
+export type MatchMarketsArgs = {
+  status?: InputMaybe<Array<MarketStatus>>;
 };
 
 /** Where a match is in its lifecycle. Bets are accepted until FINISHED. */
@@ -212,13 +303,13 @@ export type Mutation = {
   adminAssignRole: User;
   /** Staff sign-in for the admin console. Returns an admin-scoped token. */
   adminLogin: AuthPayload;
-  /** Withdraw an open single for its value at the match's current odds (stake × placed odds ÷ current odds). expected is the value the player was shown; a lower current value is refused. */
+  /** Withdraw an open single while its market is open, for its value at the outcome's current odds (stake × placed odds ÷ current odds). expected is the value the player was shown; a lower current value is refused. */
   cashOutBet: PlaceBetPayload;
   /** Customer sign-in for the web app. Returns a customer-scoped token. */
   login: AuthPayload;
   /** Revoke the token used for this request. */
   logout: Scalars['Boolean']['output'];
-  /** Bet play-money credits on one side of a match. Odds are taken from the match at this moment. */
+  /** Bet play-money credits on one outcome of a match (or one side, for the WINNER market). Odds are taken from the outcome at this moment. */
   placeBet: PlaceBetPayload;
   /** Bet on two or more picks from different matches (a parlay). Total odds are the product of the picks' odds at this moment; it wins only if every pick wins. */
   placeComboBet: PlaceBetPayload;
@@ -309,6 +400,11 @@ export type OrderByRelationWithColumnAggregateFunction =
   /** Sum. */
   | 'SUM';
 
+/** Set once the market is settled: exactly one outcome WON, the rest LOST. */
+export type OutcomeResult =
+  | 'LOST'
+  | 'WON';
+
 /** Information about pagination using a fully featured paginator. */
 export type PaginatorInfo = {
   __typename?: 'PaginatorInfo';
@@ -330,9 +426,11 @@ export type PaginatorInfo = {
   total: Scalars['Int']['output'];
 };
 
+/** Give either `side` (the WINNER market) or `outcomeId`. */
 export type PlaceBetInput = {
   matchId: Scalars['ID']['input'];
-  side: Side;
+  outcomeId?: InputMaybe<Scalars['ID']['input']>;
+  side?: InputMaybe<Side>;
   stake: Scalars['Int']['input'];
 };
 
@@ -439,6 +537,7 @@ export type Side =
   | 'B';
 
 export type SimCreateMatchInput = {
+  bestOf?: InputMaybe<Scalars['Int']['input']>;
   /** PandaScore match id the matchup was taken from. */
   externalId?: InputMaybe<Scalars['ID']['input']>;
   game: Scalars['String']['input'];
@@ -455,7 +554,41 @@ export type SimCreateMatchInput = {
   tournament: Scalars['String']['input'];
 };
 
+export type SimMapInput = {
+  name: Scalars['String']['input'];
+  scoreA: Scalars['Int']['input'];
+  scoreB: Scalars['Int']['input'];
+  winner?: InputMaybe<Side>;
+};
+
+export type SimMarketInput = {
+  half?: InputMaybe<Scalars['Int']['input']>;
+  key: Scalars['String']['input'];
+  line?: InputMaybe<Scalars['Float']['input']>;
+  map?: InputMaybe<Scalars['Int']['input']>;
+  outcomes: Array<SimOutcomeInput>;
+  round?: InputMaybe<Scalars['Int']['input']>;
+  side?: InputMaybe<Side>;
+  sort?: InputMaybe<Scalars['Int']['input']>;
+  status: MarketStatus;
+  type: MarketType;
+};
+
+export type SimOutcomeInput = {
+  key: Scalars['String']['input'];
+  odds: Scalars['Float']['input'];
+  result?: InputMaybe<OutcomeResult>;
+};
+
 export type SimUpdateMatchInput = {
+  /** Replaces the map list. */
+  maps?: InputMaybe<Array<SimMapInput>>;
+  /**
+   * Markets to open, reprice, suspend or settle. Leave out WINNER (it follows oddsA, oddsB and winner). Markets left out
+   * are unchanged. A settled market never changes; settling pays its picks at once. A match can only finish once every
+   * market is settled.
+   */
+  markets?: InputMaybe<Array<SimMarketInput>>;
   oddsA?: InputMaybe<Scalars['Float']['input']>;
   oddsB?: InputMaybe<Scalars['Float']['input']>;
   scoreA?: InputMaybe<Scalars['Int']['input']>;
@@ -480,6 +613,7 @@ export type Subscription = {
 
 export type SubscriptionMatchUpdatedArgs = {
   game?: InputMaybe<Scalars['String']['input']>;
+  id?: InputMaybe<Scalars['ID']['input']>;
 };
 
 /** Specify if you want to include or exclude trashed results from a query. */
@@ -527,7 +661,7 @@ export type Wallet = {
 
 
 type Properties<T> = {
-  [K in keyof T]: z.ZodType<T[K], unknown>;
+  [K in keyof T]-?: z.ZodType<T[K], unknown>;
 };
 
 type definedNonNullAny = {};
@@ -539,6 +673,10 @@ export const definedNonNullAnySchema = z.any().refine((v) => isDefinedNonNullAny
 export const BetStatusSchema: z.ZodType<"CASHED_OUT" | "LOST" | "PENDING" | "WON", "CASHED_OUT" | "LOST" | "PENDING" | "WON"> = z.enum(['CASHED_OUT', 'LOST', 'PENDING', 'WON']);
 
 export const BetTypeSchema: z.ZodType<"COMBO" | "SINGLE", "COMBO" | "SINGLE"> = z.enum(['COMBO', 'SINGLE']);
+
+export const MarketStatusSchema: z.ZodType<"OPEN" | "SETTLED" | "SUSPENDED", "OPEN" | "SETTLED" | "SUSPENDED"> = z.enum(['OPEN', 'SETTLED', 'SUSPENDED']);
+
+export const MarketTypeSchema: z.ZodType<"ACE" | "BOMB_PLANTED" | "CORRECT_MAP_SCORE" | "HALF_1X2" | "HALF_HANDICAP" | "MAP_1X2" | "MAP_HANDICAP" | "MAP_ROUNDS_HANDICAP" | "MAP_TOTAL_ROUNDS" | "MAP_WINNER" | "ODD_EVEN_MAPS" | "PISTOL_ROUND" | "RACE_TO_ROUNDS" | "ROUNDS_HANDICAP" | "ROUND_WINNER" | "TEAM_TOTAL_ROUNDS" | "TOTAL_MAPS" | "TOTAL_ROUNDS" | "WINNER", "ACE" | "BOMB_PLANTED" | "CORRECT_MAP_SCORE" | "HALF_1X2" | "HALF_HANDICAP" | "MAP_1X2" | "MAP_HANDICAP" | "MAP_ROUNDS_HANDICAP" | "MAP_TOTAL_ROUNDS" | "MAP_WINNER" | "ODD_EVEN_MAPS" | "PISTOL_ROUND" | "RACE_TO_ROUNDS" | "ROUNDS_HANDICAP" | "ROUND_WINNER" | "TEAM_TOTAL_ROUNDS" | "TOTAL_MAPS" | "TOTAL_ROUNDS" | "WINNER"> = z.enum(['ACE', 'BOMB_PLANTED', 'CORRECT_MAP_SCORE', 'HALF_1X2', 'HALF_HANDICAP', 'MAP_1X2', 'MAP_HANDICAP', 'MAP_ROUNDS_HANDICAP', 'MAP_TOTAL_ROUNDS', 'MAP_WINNER', 'ODD_EVEN_MAPS', 'PISTOL_ROUND', 'RACE_TO_ROUNDS', 'ROUNDS_HANDICAP', 'ROUND_WINNER', 'TEAM_TOTAL_ROUNDS', 'TOTAL_MAPS', 'TOTAL_ROUNDS', 'WINNER']);
 
 export const MatchStateSchema: z.ZodType<"FINISHED" | "LIVE" | "UPCOMING", "FINISHED" | "LIVE" | "UPCOMING"> = z.enum(['FINISHED', 'LIVE', 'UPCOMING']);
 
@@ -552,6 +690,8 @@ export const OrderByRelationAggregateFunctionSchema: z.ZodType<"COUNT", "COUNT">
 
 export const OrderByRelationWithColumnAggregateFunctionSchema: z.ZodType<"AVG" | "COUNT" | "MAX" | "MIN" | "SUM", "AVG" | "COUNT" | "MAX" | "MIN" | "SUM"> = z.enum(['AVG', 'COUNT', 'MAX', 'MIN', 'SUM']);
 
+export const OutcomeResultSchema: z.ZodType<"LOST" | "WON", "LOST" | "WON"> = z.enum(['LOST', 'WON']);
+
 export const RoleSchema: z.ZodType<"ADMIN" | "CUSTOMER" | "MODERATOR" | "OWNER", "ADMIN" | "CUSTOMER" | "MODERATOR" | "OWNER"> = z.enum(['ADMIN', 'CUSTOMER', 'MODERATOR', 'OWNER']);
 
 export const SideSchema: z.ZodType<"A" | "B", "A" | "B"> = z.enum(['A', 'B']);
@@ -563,7 +703,8 @@ export const TrashedSchema: z.ZodType<"ONLY" | "WITH" | "WITHOUT", "ONLY" | "WIT
 export function BetSelectionInputSchema(): z.ZodObject<Properties<BetSelectionInput>> {
   return z.object({
     matchId: z.string(),
-    side: SideSchema
+    outcomeId: z.string().nullish(),
+    side: SideSchema.nullish()
   })
 }
 
@@ -591,7 +732,8 @@ export function OrderByClauseSchema(): z.ZodObject<Properties<OrderByClause>> {
 export function PlaceBetInputSchema(): z.ZodObject<Properties<PlaceBetInput>> {
   return z.object({
     matchId: z.string(),
-    side: SideSchema,
+    outcomeId: z.string().nullish(),
+    side: SideSchema.nullish(),
     stake: z.number()
   })
 }
@@ -614,6 +756,7 @@ export function RegisterInputSchema(): z.ZodObject<Properties<RegisterInput>> {
 
 export function SimCreateMatchInputSchema(): z.ZodObject<Properties<SimCreateMatchInput>> {
   return z.object({
+    bestOf: z.number().nullish(),
     externalId: z.string().nullish(),
     game: z.string(),
     gameName: z.string(),
@@ -630,8 +773,42 @@ export function SimCreateMatchInputSchema(): z.ZodObject<Properties<SimCreateMat
   })
 }
 
+export function SimMapInputSchema(): z.ZodObject<Properties<SimMapInput>> {
+  return z.object({
+    name: z.string(),
+    scoreA: z.number(),
+    scoreB: z.number(),
+    winner: SideSchema.nullish()
+  })
+}
+
+export function SimMarketInputSchema(): z.ZodObject<Properties<SimMarketInput>> {
+  return z.object({
+    half: z.number().nullish(),
+    key: z.string(),
+    line: z.number().nullish(),
+    map: z.number().nullish(),
+    outcomes: z.array(z.lazy(() => SimOutcomeInputSchema())),
+    round: z.number().nullish(),
+    side: SideSchema.nullish(),
+    sort: z.number().nullish(),
+    status: MarketStatusSchema,
+    type: MarketTypeSchema
+  })
+}
+
+export function SimOutcomeInputSchema(): z.ZodObject<Properties<SimOutcomeInput>> {
+  return z.object({
+    key: z.string(),
+    odds: z.number(),
+    result: OutcomeResultSchema.nullish()
+  })
+}
+
 export function SimUpdateMatchInputSchema(): z.ZodObject<Properties<SimUpdateMatchInput>> {
   return z.object({
+    maps: z.array(z.lazy(() => SimMapInputSchema())).nullish(),
+    markets: z.array(z.lazy(() => SimMarketInputSchema())).nullish(),
     oddsA: z.number().nullish(),
     oddsB: z.number().nullish(),
     scoreA: z.number().nullish(),

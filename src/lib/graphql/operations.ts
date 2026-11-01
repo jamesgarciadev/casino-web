@@ -44,14 +44,64 @@ export const MatchFieldsFragment = graphql(`
     teamB
     teamAAcronym
     teamBAcronym
+    bestOf
     scoreA
     scoreB
+    maps {
+      number
+      name
+      scoreA
+      scoreB
+      winner
+    }
     oddsA
     oddsB
     startsAt
     state
     winner
     streamUrl
+  }
+`);
+
+export const MarketFieldsFragment = graphql(`
+  fragment MarketFields on Market {
+    id
+    key
+    type
+    map
+    half
+    round
+    line
+    side
+    status
+    outcomes {
+      id
+      key
+      odds
+    }
+  }
+`);
+
+/** The match page: the match with every market still taking (or about to take) bets. */
+export const MatchMarketsQuery = graphql(`
+  query MatchMarkets($id: ID!) {
+    match(id: $id) {
+      ...MatchFields
+      markets(status: [OPEN, SUSPENDED]) {
+        ...MarketFields
+      }
+    }
+  }
+`);
+
+export const MatchMarketsUpdatedSubscription = graphql(`
+  subscription MatchMarketsUpdated($id: ID!) {
+    matchUpdated(id: $id) {
+      ...MatchFields
+      markets(status: [OPEN, SUSPENDED]) {
+        ...MarketFields
+      }
+    }
   }
 `);
 
@@ -94,6 +144,21 @@ export const BetFieldsFragment = graphql(`
       side
       odds
       status
+      market {
+        id
+        type
+        map
+        half
+        round
+        line
+        side
+        status
+      }
+      outcome {
+        id
+        key
+        odds
+      }
       match {
         ...MatchFields
       }

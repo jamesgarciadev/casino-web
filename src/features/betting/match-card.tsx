@@ -1,9 +1,11 @@
 "use client";
 
-import { Radio, Trophy } from "lucide-react";
+import { ChevronRight, Radio, Trophy } from "lucide-react";
+import Link from "next/link";
 
 import { Flash } from "@/components/flash";
 import { Button } from "@/components/ui/button";
+import { currentRound } from "@/features/markets/markets";
 import type { Side } from "@/gql/graphql";
 import { cn } from "@/lib/cn";
 import { useUiStore } from "@/providers/ui-store-provider";
@@ -87,6 +89,8 @@ function TeamName({ match, side }: { match: Match; side: Side }) {
 export function MatchCard({ match }: { match: Match }) {
   const live = match.state === "LIVE";
   const started = match.state !== "UPCOMING";
+  // In a series the big score is maps won, so the map in play gets its own line.
+  const now = match.bestOf > 1 ? currentRound(match) : null;
 
   return (
     <article
@@ -124,23 +128,40 @@ export function MatchCard({ match }: { match: Match }) {
         )}
         <TeamName match={match} side="B" />
       </div>
+      {now && (
+        <p className="mt-1 text-center text-[11px] text-muted-foreground tabular-nums" data-testid="map-in-play">
+          {now.map.name} · {now.map.scoreA}:{now.map.scoreB}
+        </p>
+      )}
 
       <div className="mt-5 grid grid-cols-2 gap-3">
         <OddsButton match={match} side="A" />
         <OddsButton match={match} side="B" />
       </div>
 
-      {live && match.streamUrl && (
-        <a
-          href={match.streamUrl}
-          target="_blank"
-          rel="noreferrer"
-          className="mt-4 flex items-center justify-center gap-1.5 text-xs text-muted-foreground transition-colors hover:text-accent"
+      <div className="mt-4 flex items-center justify-between gap-3 text-xs">
+        {live && match.streamUrl ? (
+          <a
+            href={match.streamUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="flex items-center gap-1.5 text-muted-foreground transition-colors hover:text-accent"
+          >
+            <Radio className="size-3.5" />
+            Watch stream
+          </a>
+        ) : (
+          <span />
+        )}
+        <Link
+          href={`/matches/${match.id}`}
+          aria-label={`All markets for ${match.teamA} vs ${match.teamB}`}
+          className="flex items-center gap-0.5 font-display font-bold text-primary transition-colors hover:text-accent"
         >
-          <Radio className="size-3.5" />
-          Watch stream
-        </a>
-      )}
+          All markets
+          <ChevronRight className="size-3.5" />
+        </Link>
+      </div>
     </article>
   );
 }
