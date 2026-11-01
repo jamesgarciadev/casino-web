@@ -27,6 +27,7 @@ Sign in with `customer@casino.test` / `Password1!` (wallet starts at 1,000 CR).
 |---|---|
 | `/` | Hero, odds ticker, live now, upcoming, games, mobile apps, sign-up band (signed out only) |
 | `/matches?game=` | All live and upcoming matches with game filter chips |
+| `/matches/[id]` | One match: series header with per-map scores, and every open market in the design's tabs (Popular, All, Rounds, Match, Map N, Half N) |
 | `/my-bets` | Wallet balance, +500 top-up, bet history (signed in) |
 | `/login`, `/register`, `/account` | Server-action auth, restyled |
 
@@ -35,6 +36,13 @@ any time (empty placeholder when nothing is picked) and shows how many picks are
 odds from other matches turn it into a **Combo** with a match count and **Total odds** (the product, computed the same
 way as be's `Bet::totalOdds`). Picking the other team of a match already on the slip swaps that pick, since a combo
 can't back one match twice. Only the first pick opens the slip, so it doesn't cover the odds while a combo is built.
+
+On a match page every market is pickable: series markets for every game, plus map, round and half markets for CS2 and
+Valorant. Any other odds of a match already on the slip replace its pick (one pick per match, as above). Market picks
+keep their label and the odds when picked; their live odds come from the markets the page subscribes to
+(`matchUpdated(id:)`), which also tells My bets when a market settles mid-match. Suspended markets show greyed odds and
+take no picks; settled markets leave the page. Titles, labels and tabs are built from each market's type, map, half,
+round and line (`src/features/markets/markets.ts`).
 
 The slip's **My bets** tab shows Open and Settled bets, 10 at a time with more loaded on scroll. Open singles show their
 live odds and a **Withdraw** (cash-out) button whose value follows them; the first tap asks to confirm. Caching:
@@ -90,10 +98,12 @@ their own player so wallets never collide; the live-update test creates its own 
 | `auth.spec.ts` | log in, register, password policy, log out |
 | `session.spec.ts` | header and account per session state, GraphQL proxy |
 | `betting.spec.ts` | landing and filters, bet slip, singles and combos, total odds and payouts, placing bets, insufficient balance, top-up, live score and odds pushes, settlement |
+| `markets.spec.ts` | match page header and tabs, one pick per match across markets, live and suspended odds, a market single settling mid-match, cash-out at outcome odds |
 
 ## Layout
 
 - `src/features/betting`: match cards, grid, ticker, bet slip, live provider, actions and queries
+- `src/features/markets`: match page header, market tabs and sections, labels, live market hook
 - `src/lib/graphql/server.ts`: server-side GraphQL client (forwards bearer token + client IP; never runs during prefetch)
 - `src/app/api/graphql`: same-origin proxy for Client Components (adds the httpOnly token) and channel auth
 - `src/lib/auth`: session cookie + Data Access Layer (`getCurrentUser`)

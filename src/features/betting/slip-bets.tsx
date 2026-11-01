@@ -13,9 +13,9 @@ import { useUiStore } from "@/providers/ui-store-provider";
 import { betsAreFresh, type BetsFilter } from "@/stores/ui-store";
 
 import { cashOutAction } from "./actions";
-import { BET_STATUS_STYLES, betLabel, pickTeam, statusLabel, type Bet } from "./bet";
-import { useKnownMatchMap } from "./live-matches";
-import { cashOutValue, formatCredits, formatOdds, oddsFor } from "./match";
+import { BET_STATUS_STYLES, betLabel, liveOdds, marketSettled, pickName, statusLabel, type Bet } from "./bet";
+import { useKnownMarketMap, useKnownMatchMap } from "./live-matches";
+import { cashOutValue, formatCredits, formatOdds } from "./match";
 
 const PAGE_SIZE = 10;
 
@@ -160,6 +160,7 @@ function BetPage({
   onEnd: (lastId: string) => void;
 }) {
   const matches = useKnownMatchMap();
+  const markets = useKnownMarketMap();
   const bumpBets = useUiStore((s) => s.bumpBets);
   const markBetsSynced = useUiStore((s) => s.markBetsSynced);
   const [{ data, fetching, error }] = useQuery({
@@ -178,10 +179,16 @@ function BetPage({
     }
   }, [bets, before, fromCache, filter, version, markBetsSynced]);
 
-  // A pick still pending here whose match the live feed has since reported finished: be has just settled it.
+  // A pick still pending here whose match the live feed has since reported finished, or whose market has left the
+  // open list (pushed while the match page is open): be has just settled it.
   const finished = (bets ?? [])
     .flatMap((bet) => bet.selections)
-    .filter((pick) => pick.status === "PENDING" && matches[pick.match.id]?.state === "FINISHED" && !finishedPicks.has(pick.id))
+    .filter(
+      (pick) =>
+        pick.status === "PENDING" &&
+        (matches[pick.match.id]?.state === "FINISHED" || marketSettled(pick, markets[pick.match.id])) &&
+        !finishedPicks.has(pick.id),
+    )
     .map((pick) => pick.id);
 
   useEffect(() => {
@@ -240,6 +247,7 @@ function BetPage({
 
 function SlipBet({ bet }: { bet: Bet }) {
   const matches = useKnownMatchMap();
+  const markets = useKnownMarketMap();
   const combo = bet.type === "COMBO";
   const cashable = !combo && bet.status === "PENDING";
 
@@ -268,7 +276,7 @@ function SlipBet({ bet }: { bet: Bet }) {
         {bet.selections.map((pick) => {
           // The live version of the match, for the current score and odds.
           const match = matches[pick.match.id] ?? pick.match;
-          const now = oddsFor(match, pick.side);
+          const now = liveOdds(pick, match, markets[pick.match.id]);
           return (
             <div key={pick.id} className="min-w-0 text-xs">
               <p className="flex items-center gap-2">
@@ -282,8 +290,8 @@ function SlipBet({ bet }: { bet: Bet }) {
                 )}
               </p>
               <p className="text-muted-foreground">
-                {pickTeam(pick)} to win · @ {formatOdds(pick.odds)}
-                {pick.status === "PENDING" && match.state !== "FINISHED" && now !== pick.odds && (
+                {pickName(pick)} · @ {formatOdds(pick.odds)}
+                {pick.status === "PENDING" && now !== null && now !== pick.odds && (
                   <span data-testid="current-odds" className={now < pick.odds ? "text-live" : "text-destructive"}>
                     {" "}
                     · now {formatOdds(now)}
@@ -324,19 +332,22 @@ function SlipBet({ bet }: { bet: Bet }) {
 const CONFIRM_MS = 4000;
 
 /**
- * Withdraw for an open single. The value follows the match's live odds; the first tap asks to confirm, the second
+ * Withdraw for an open single. The value follows the pick's live odds; the first tap asks to confirm, the second
  * sends the value shown, which be pays (or better) or refuses if it has dropped since.
  */
 function CashOutButton({ bet }: { bet: Bet }) {
   const matches = useKnownMatchMap();
+  const markets = useKnownMarketMap();
   const bumpBets = useUiStore((s) => s.bumpBets);
   const [confirming, setConfirming] = useState(false);
   const [pending, startCashOut] = useTransition();
 
   const pick = bet.selections[0];
   const match = matches[pick.match.id] ?? pick.match;
-  const value = cashOutValue(bet.stake, bet.odds, oddsFor(match, pick.side));
-  const closed = match.state === "FINISHED";
+  // No current odds means the market has stopped taking bets: be would refuse a cash-out too.
+  const now = liveOdds(pick, match, markets[pick.match.id]);
+  const value = now === null ? 0 : cashOutValue(bet.stake, bet.odds, now);
+  const closed = now === null;
 
   useEffect(() => {
     if (!confirming) {
@@ -368,7 +379,11 @@ function CashOutButton({ bet }: { bet: Bet }) {
   };
 
   const Trend = value >= bet.stake ? TrendingUp : TrendingDown;
-  const label = pending ? "Withdrawing…" : `${confirming ? "Confirm withdraw" : "Withdraw"} ${formatCredits(value)}`;
+  const label = pending
+    ? "Withdrawing…"
+    : closed
+      ? "Withdraw unavailable"
+      : `${confirming ? "Confirm withdraw" : "Withdraw"} ${formatCredits(value)}`;
 
   return (
     <button

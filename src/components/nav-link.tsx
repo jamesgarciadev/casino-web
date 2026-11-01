@@ -2,13 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import type { ReactNode } from "react";
+import { Suspense, type ReactNode } from "react";
 
 import { cn } from "@/lib/cn";
 
-export function NavLink({ href, children }: { href: string; children: ReactNode }) {
-  const active = usePathname().startsWith(href);
+type Props = { href: string; children: ReactNode };
 
+function StyledLink({ href, children, active }: Props & { active: boolean }) {
   return (
     <Link
       href={href}
@@ -20,5 +20,21 @@ export function NavLink({ href, children }: { href: string; children: ReactNode 
     >
       {children}
     </Link>
+  );
+}
+
+function ActiveLink(props: Props) {
+  return <StyledLink {...props} active={usePathname().startsWith(props.href)} />;
+}
+
+/**
+ * A header link highlighted on its section. Dynamic routes (/matches/[id]) only know the path at request time, so the
+ * highlight streams in; until then the link renders unhighlighted.
+ */
+export function NavLink(props: Props) {
+  return (
+    <Suspense fallback={<StyledLink {...props} active={false} />}>
+      <ActiveLink {...props} />
+    </Suspense>
   );
 }

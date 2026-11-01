@@ -10,9 +10,14 @@ import { gqlRequest } from "@/lib/graphql/server";
 
 export type BetResult = { ok: true; payout: number; balance: number } | { ok: false; message: string };
 
+const id = z.string().regex(/^\d+$/);
+
+/** A side of the match (its winner market) or an outcome of one of its markets. */
+const pickSchema = z.union([z.object({ matchId: id, side: z.enum(["A", "B"]) }).strict(), z.object({ matchId: id, outcomeId: id }).strict()]);
+
 const placeBetSchema = z.object({
   selections: z
-    .array(z.object({ matchId: z.string().regex(/^\d+$/), side: z.enum(["A", "B"]) }))
+    .array(pickSchema)
     .min(1, "Pick some odds first.")
     .refine((picks) => new Set(picks.map((p) => p.matchId)).size === picks.length, "A combo can only include one pick per match."),
   stake: z.number().int("Stake must be whole credits.").min(1, "Enter a stake first.").max(1_000_000),
