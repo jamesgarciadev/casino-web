@@ -94,7 +94,8 @@ npm run test:e2e:report           # open the last HTML report (traces + screensh
 ```
 
 Requires Docker MySQL and Redis from `casino-be` to be up. The suite starts its own isolated stack, separate from your
-dev servers:
+dev servers. Outside CI, Playwright reuses anything already listening on ports 8100, 6101 or 3100 instead, so stop
+those first:
 
 | Piece | Port | Notes |
 |---|---|---|
