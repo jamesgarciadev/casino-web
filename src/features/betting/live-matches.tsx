@@ -287,7 +287,8 @@ export function useApplyMarkets(): (matchId: string, markets: Market[]) => void 
 /**
  * Listen to a subscription over the shared socket while the component is mounted. `onData` always sees the latest
  * props. `onJoined` runs each time the channel is joined (again after a reconnect): anything pushed before that was
- * missed, so it is the moment to refetch. Returns whether the socket is up, so callers can poll instead while it isn't.
+ * missed, so it is the moment to refetch. Returns whether this channel is joined and the socket is up, so callers can
+ * poll instead while it isn't.
  */
 export function useLiveSubscription<T, V extends Record<string, unknown>>(
   document: TypedDocumentNode<T, V>,
@@ -299,16 +300,28 @@ export function useLiveSubscription<T, V extends Record<string, unknown>>(
   const handle = useEffectEvent(onData);
   const joined = useEffectEvent(() => onJoined?.());
   const key = JSON.stringify(variables);
+  // The channel last joined, so a new socket or new variables count as not joined without resetting anything.
+  const [joinedChannel, setJoinedChannel] = useState<{ socket: Pusher; key: string } | null>(null);
 
   useEffect(() => {
     if (!socket) {
       return;
     }
 
-    return joinSubscription<T>(socket, stringifyDocument(document), JSON.parse(key) as V, (data) => handle(data), () => joined());
+    return joinSubscription<T>(
+      socket,
+      stringifyDocument(document),
+      JSON.parse(key) as V,
+      (data) => handle(data),
+      () => {
+        setJoinedChannel({ socket, key });
+        joined();
+      },
+      () => setJoinedChannel(null),
+    );
   }, [socket, document, key]);
 
   const status = useLiveStatus();
 
-  return socket !== null && status === "live";
+  return socket !== null && status === "live" && joinedChannel?.socket === socket && joinedChannel.key === key;
 }

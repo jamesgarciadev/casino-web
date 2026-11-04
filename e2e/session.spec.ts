@@ -33,7 +33,7 @@ test.describe("signed in", () => {
 
     await expect(page.getByRole("heading", { name: "My account" })).toBeVisible();
     await expect(page.getByRole("main").getByText(DEMO_CUSTOMER.name, { exact: true })).toBeVisible();
-    await expect(page.getByText(DEMO_CUSTOMER.email)).toBeVisible();
+    await expect(page.getByRole("main").getByText(DEMO_CUSTOMER.email)).toBeVisible();
     await expect(page.getByText("Member since")).toBeVisible();
   });
 

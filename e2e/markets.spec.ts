@@ -88,6 +88,18 @@ test.describe("match page", () => {
     await expect(page.getByRole("button", { name: "Total maps · Over 2.5 at suspended" })).toBeDisabled();
   });
 
+  test("odds keep moving by polling when the page's own channel can't be joined", async ({ page }) => {
+    const { id } = await liveSeries(page);
+    await page.route("**/api/graphql", (route) =>
+      route.request().postData()?.includes("MatchMarketsUpdated") ? route.abort() : route.fallback(),
+    );
+    await page.goto(`/matches/${id}`);
+    await expect(page.getByRole("button", { name: "Total maps · Over 2.5 at 2.40" })).toBeEnabled();
+
+    await updateMatch(page.request, id, { markets: [totalMaps(2.9, 1.4)] });
+    await expect(page.getByRole("button", { name: "Total maps · Over 2.5 at 2.90" })).toBeVisible({ timeout: 15_000 });
+  });
+
   test("a market single settles mid-match and pays", async ({ page }) => {
     await registerNewPlayer(page);
     const { id, teamA } = await liveSeries(page);
