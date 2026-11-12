@@ -59,6 +59,15 @@ live odds and a **Withdraw** (cash-out) button whose value follows them; the fir
 Reverb settings (`REVERB_APP_KEY`, `REVERB_HOST`, `REVERB_PORT`, `REVERB_SCHEME`) are read on the server and passed to
 the browser by the root layout, which is prerendered, so set them before `next build`.
 
+## CI
+
+GitHub Actions (`.github/workflows/ci.yml`) runs on every pull request and on main:
+
+- **Codegen, types and lint**: regenerates `src/gql` from casino-be's main schema and fails if it differs, then
+  typecheck and lint. A web change that needs a new be field passes once that be change is merged.
+- **Playwright**: the full E2E suite, with casino-be checked out next to this repo (the branch of the same name if it
+  exists, otherwise main) and MySQL and Redis as services.
+
 ## End-to-end tests (Playwright)
 
 ```sh
